@@ -37,6 +37,7 @@ export function PortalShell({ role, name, children }: { role: keyof typeof navig
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const studentTheme = role === "SISWA";
+  const loginPath = role === "ADMIN" ? "/admin/masuk" : role === "KEPSEK" ? "/kepsek/masuk" : "/masuk";
   const sidebar = (
     <>
       <div className={cn("flex h-16 items-center gap-3 border-b px-5", studentTheme ? "border-blue-100" : "border-white/10")}>
@@ -55,7 +56,7 @@ export function PortalShell({ role, name, children }: { role: keyof typeof navig
         </nav>
       </div>
       <div className="mt-auto p-3">
-        <button onClick={() => void signOut({ callbackUrl: "/masuk" })} className={cn("flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm", studentTheme ? "text-slate-600 hover:bg-white" : "text-slate-300 hover:bg-white/5")}><LogOut aria-hidden="true" className="size-[18px]" />Keluar</button>
+        <button onClick={() => void signOut({ callbackUrl: loginPath })} className={cn("flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm", studentTheme ? "text-slate-600 hover:bg-white" : "text-slate-300 hover:bg-white/5")}><LogOut aria-hidden="true" className="size-[18px]" />Keluar</button>
       </div>
     </>
   );

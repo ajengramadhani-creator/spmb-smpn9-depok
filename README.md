@@ -4,7 +4,7 @@ Portal penerimaan murid baru SMP Negeri 9 Depok tahun ajaran 2027/2028. Aplikasi
 
 ## Persiapan lokal
 
-Prasyarat: Node.js 20 atau lebih baru dan pnpm 9.
+Prasyarat: Node.js 20.12 atau lebih baru dan pnpm 9.
 
 ```powershell
 corepack enable
@@ -24,7 +24,7 @@ Buat `BLOB_ENCRYPTION_KEY` sebagai kunci Base64 32 byte untuk enkripsi dokumen:
 node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
-> Gunakan kata sandi demo acak milik lingkungan lokal pada `DEMO_PASSWORD` (minimal 12 karakter). Nilainya tidak disimpan di repositori.
+> Untuk development, gunakan kata sandi demo acak milik lingkungan lokal pada `DEMO_PASSWORD` (minimal 12 karakter). Seed tidak membuat akun demo jika `NODE_ENV=production`.
 
 ## Neon dan Prisma
 
@@ -37,11 +37,32 @@ pnpm db:migrate --name init
 pnpm db:seed
 ```
 
-Seed menyiapkan periode 2027/2028, jalur Domisili (144), Prestasi (72), Afirmasi (58), Mutasi (14), total 288 kursi, akun demo, contoh pendaftar, pengumuman, serta 20 soal TKA. Akun demo menggunakan `DEMO_PASSWORD` yang sama, dengan email `nabila@spmb.smpn9depok.sch.id`, `andi.rahman@spmb.smpn9depok.sch.id`, dan `ratna.wulandari@spmb.smpn9depok.sch.id`.
+Seed menyiapkan periode 2027/2028, jalur Domisili (144), Prestasi (72), Afirmasi (58), Mutasi (14), total 288 kursi, data contoh, pengumuman, serta 20 soal TKA. Di luar production, seed juga membuat akun demo dengan `DEMO_PASSWORD` yang sama. Seed tidak memperbarui akun lain jika email demo sudah dimiliki akun yang berbeda.
 
-## Autentikasi dan email
+## Akun staf dan autentikasi
 
-Masuk menerima email atau NISN. Pendaftaran publik hanya membuat akun SISWA dan memerlukan verifikasi email; akun ADMIN dan KEPSEK dikelola melalui seed atau panel. Atur `RESEND_API_KEY` dan `EMAIL_FROM` untuk pengiriman email verifikasi serta pemulihan kata sandi. Tautan reset kata sandi berlaku 30 menit dan hanya dapat digunakan sekali.
+Portal masuk terpisah tersedia di `/masuk` (siswa), `/admin/masuk` (administrator), dan `/kepsek/masuk` (kepala sekolah). Pendaftaran publik hanya membuat akun SISWA dan memerlukan verifikasi email. Atur `RESEND_API_KEY` dan `EMAIL_FROM` untuk pengiriman email verifikasi serta pemulihan kata sandi. Tautan reset kata sandi berlaku 30 menit dan hanya dapat digunakan sekali.
+
+Buat akun ADMIN atau KEPSEK pertama di terminal pada lingkungan yang memiliki akses ke basis data. Masukkan email asli staf dan nama saat menjalankan perintah; kata sandi diminta secara interaktif tanpa ditampilkan:
+
+```powershell
+$EmailAdmin = Read-Host "Email asli administrator"
+$NamaAdmin = Read-Host "Nama administrator"
+pnpm create-staff "--role=ADMIN" "--email=$EmailAdmin" "--name=$NamaAdmin"
+
+$EmailKepsek = Read-Host "Email asli kepala sekolah"
+$NamaKepsek = Read-Host "Nama kepala sekolah"
+pnpm create-staff "--role=KEPSEK" "--email=$EmailKepsek" "--name=$NamaKepsek"
+```
+
+Kata sandi staf minimal 12 karakter dan harus memuat huruf besar, huruf kecil, angka, serta simbol. Untuk mengatur ulang kata sandi staf, jalankan:
+
+```powershell
+$EmailStaf = Read-Host "Email akun staf"
+pnpm reset-staff-password "--email=$EmailStaf"
+```
+
+**Sebelum go-live, hapus akun demo Nabila, Andi, dan Ratna dari basis data serta tinjau/hapus data pendaftar contoh.** Seed tidak membuat akun demo baru di production, tetapi tidak menghapus data demo yang sudah ada.
 
 Untuk produksi, isi `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` agar pembatasan percobaan masuk, pendaftaran, dan pemulihan kata sandi terdistribusi. Tanpa Upstash, pembatasan memori hanya digunakan pada development.
 

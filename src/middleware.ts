@@ -8,7 +8,10 @@ const roleByPath = [
 ] as const;
 
 export async function middleware(request: NextRequest) {
-  const required = roleByPath.find(({ prefix }) => request.nextUrl.pathname === prefix || request.nextUrl.pathname.startsWith(`${prefix}/`));
+  const { pathname } = request.nextUrl;
+  if (pathname === "/admin/masuk" || pathname === "/kepsek/masuk") return NextResponse.next();
+
+  const required = roleByPath.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   if (!required) return NextResponse.next();
 
   const token = await getToken({
@@ -16,7 +19,10 @@ export async function middleware(request: NextRequest) {
     secret: process.env.AUTH_SECRET,
     cookieName: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
   });
-  if (!token) return NextResponse.redirect(new URL("/masuk", request.url));
+  if (!token) {
+    const loginPath = required.role === "ADMIN" ? "/admin/masuk" : required.role === "KEPSEK" ? "/kepsek/masuk" : "/masuk";
+    return NextResponse.redirect(new URL(loginPath, request.url));
+  }
   if (token.role !== required.role) return NextResponse.redirect(new URL("/akses-ditolak", request.url));
   return NextResponse.next();
 }

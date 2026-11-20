@@ -4,11 +4,12 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  const includeDemoAccounts = process.env.NODE_ENV !== "production";
   const demoPassword = process.env.DEMO_PASSWORD;
-  if (!demoPassword || demoPassword.length < 12) {
+  if (includeDemoAccounts && (!demoPassword || demoPassword.length < 12)) {
     throw new Error("Atur DEMO_PASSWORD minimal 12 karakter sebelum menjalankan seed.");
   }
-  const passwordHash = await bcrypt.hash(demoPassword, 12);
+  const passwordHash = includeDemoAccounts ? await bcrypt.hash(demoPassword!, 12) : null;
   const period = await prisma.academicPeriod.upsert({
     where: { name: "2027/2028" },
     create: { id: "periode-2027-2028", name: "2027/2028", startsAt: new Date("2027-01-01"), endsAt: new Date("2027-12-31"), isActive: true },
@@ -27,47 +28,76 @@ async function main() {
     update: { name: track.name, quota: track.quota, isActive: true },
   })));
 
-  const accounts = [
+  const accounts = includeDemoAccounts ? [
     { id: "demo-siswa-nabila", name: "Nabila Putri Azzahra", email: "nabila@spmb.smpn9depok.sch.id", role: Role.SISWA },
     { id: "demo-admin-andi", name: "Andi Rahman", email: "andi.rahman@spmb.smpn9depok.sch.id", role: Role.ADMIN },
     { id: "demo-kepsek-ratna", name: "Dr. Ratna Wulandari", email: "ratna.wulandari@spmb.smpn9depok.sch.id", role: Role.KEPSEK },
-  ];
+  ] : [];
+  let nabilaUser = null;
   for (const account of accounts) {
-    await prisma.user.upsert({
-      where: { email: account.email },
-      create: { ...account, passwordHash, isActive: true, emailVerifiedAt: new Date() },
-      update: { name: account.name, role: account.role, passwordHash, isActive: true, emailVerifiedAt: new Date() },
+    if (!passwordHash) throw new Error("Kata sandi seed demo tidak tersedia.");
+    const existingById = await prisma.user.findUnique({
+      where: { id: account.id },
+      select: { id: true, email: true, role: true },
     });
+    const existingByEmail = await prisma.user.findUnique({
+      where: { email: account.email },
+      select: { id: true },
+    });
+    if ((existingById && (existingById.email !== account.email || existingById.role !== account.role))
+      || (existingByEmail && existingByEmail.id !== account.id)) {
+      console.warn(`Seed akun demo ${account.role} dilewati karena identitasnya sudah digunakan akun lain.`);
+      continue;
+    }
+    const seededAccount = await prisma.user.upsert({
+      where: { id: account.id },
+      create: { ...account, passwordHash, isActive: true, emailVerifiedAt: new Date() },
+      update: { name: account.name, passwordHash, isActive: true, emailVerifiedAt: new Date() },
+    });
+    if (account.id === "demo-siswa-nabila") nabilaUser = seededAccount;
   }
 
-  const nabilaUser = await prisma.user.findUniqueOrThrow({ where: { email: accounts[0].email } });
-  const nabila = await prisma.student.upsert({
-    where: { userId: nabilaUser.id },
-    create: {
-      id: "demo-student-nabila",
-      fullName: "Nabila Putri Azzahra",
-      nationalId: "0091812345",
-      birthPlace: "Depok",
-      birthDate: new Date("2011-01-01"),
-      gender: "PEREMPUAN",
-      phone: "081234567890",
-      address: "Kota Depok",
-      user: { connect: { email: accounts[0].email } },
-    },
-    update: { fullName: "Nabila Putri Azzahra", nationalId: "0091812345" },
-  });
-  const nabilaRegistration = await prisma.registration.upsert({
-    where: { registrationNo: "SPMB27-00918" },
-    create: {
-      registrationNo: "SPMB27-00918",
-      studentId: nabila.id,
-      academicPeriodId: period.id,
-      trackId: tracks[0].id,
-      status: RegistrationStatus.MENUNGGU_VERIFIKASI,
-      submittedAt: new Date("2027-05-04T08:30:00Z"),
-    },
-    update: { status: RegistrationStatus.MENUNGGU_VERIFIKASI },
-  });
+  let nabilaRegistrationNo = "tidak dibuat";
+  if (nabilaUser) {
+    const nabila = await prisma.student.upsert({
+      where: { userId: nabilaUser.id },
+      create: {
+        id: "demo-student-nabila",
+        fullName: "Nabila Putri Azzahra",
+        nationalId: "0091812345",
+        birthPlace: "Depok",
+        birthDate: new Date("2011-01-01"),
+        gender: "PEREMPUAN",
+        phone: "081234567890",
+        address: "Kota Depok",
+        userId: nabilaUser.id,
+      },
+      update: { fullName: "Nabila Putri Azzahra", nationalId: "0091812345" },
+    });
+    const nabilaRegistration = await prisma.registration.upsert({
+      where: { registrationNo: "SPMB27-00918" },
+      create: {
+        registrationNo: "SPMB27-00918",
+        studentId: nabila.id,
+        academicPeriodId: period.id,
+        trackId: tracks[0].id,
+        status: RegistrationStatus.MENUNGGU_VERIFIKASI,
+        submittedAt: new Date("2027-05-04T08:30:00Z"),
+      },
+      update: { status: RegistrationStatus.MENUNGGU_VERIFIKASI },
+    });
+    nabilaRegistrationNo = nabilaRegistration.registrationNo;
+    await prisma.parentGuardian.upsert({
+      where: { id: "demo-guardian-nabila" },
+      create: { id: "demo-guardian-nabila", studentId: nabila.id, name: "Dewi Anggraini", relationship: "Ibu", phone: "081298765432", isPrimary: true },
+      update: { name: "Dewi Anggraini", phone: "081298765432" },
+    });
+    await prisma.schoolOrigin.upsert({
+      where: { studentId: nabila.id },
+      create: { studentId: nabila.id, name: "SD Negeri Depok", npsn: "20200000", city: "Depok", graduationYear: 2027 },
+      update: { name: "SD Negeri Depok", graduationYear: 2027 },
+    });
+  }
 
   const sampleStudents = [
     { id: "demo-student-rizky", nationalId: "3276010202100002", fullName: "Rizky Maulana", track: tracks[1], no: "SPMB27-00919", status: RegistrationStatus.TERVERIFIKASI },
@@ -87,17 +117,6 @@ async function main() {
   }
   const sequence = await prisma.registrationSequence.upsert({ where: { year: 2027 }, create: { year: 2027, value: 920 }, update: {} });
   if (sequence.value < 920) await prisma.registrationSequence.update({ where: { year: 2027 }, data: { value: 920 } });
-
-  await prisma.parentGuardian.upsert({
-    where: { id: "demo-guardian-nabila" },
-    create: { id: "demo-guardian-nabila", studentId: nabila.id, name: "Dewi Anggraini", relationship: "Ibu", phone: "081298765432", isPrimary: true },
-    update: { name: "Dewi Anggraini", phone: "081298765432" },
-  });
-  await prisma.schoolOrigin.upsert({
-    where: { studentId: nabila.id },
-    create: { studentId: nabila.id, name: "SD Negeri Depok", npsn: "20200000", city: "Depok", graduationYear: 2027 },
-    update: { name: "SD Negeri Depok", graduationYear: 2027 },
-  });
 
   const announcements = [
     ["Pengumuman SPMB 2027/2028", "Pendaftaran murid baru SMPN 9 Depok segera dibuka. Pantau jadwal resmi di portal ini.", "UMUM"],
@@ -160,7 +179,7 @@ async function main() {
     }
   }
 
-  console.info(`Seed selesai: ${period.name}, ${tracks.length} jalur, ${accounts.length} akun, ${nabilaRegistration.registrationNo}, ${questions.length} soal.`);
+  console.info(`Seed selesai: ${period.name}, ${tracks.length} jalur, ${accounts.length} akun demo, ${nabilaRegistrationNo}, ${questions.length} soal.`);
 }
 
 main()
