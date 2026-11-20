@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "smoke-test": "node scripts/smoke-test.mjs",
     "create-staff": "tsx scripts/create-staff.ts",
     "reset-staff-password": "tsx scripts/reset-staff-password.ts"
   },

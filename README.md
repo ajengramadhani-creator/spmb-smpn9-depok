@@ -41,7 +41,9 @@ Portal masuk terpisah tersedia di `/masuk` (siswa), `/admin/masuk` (administrato
 
 Halaman `/portal` menjadi gerbang ke tiga portal; halaman masuk hanya menerima akun dengan peran yang sesuai. Di development, gerbang menampilkan tombol akun demo yang masuk tanpa mengirim kata sandi. Tombol dan provider demo tidak tersedia di production.
 
-Portal ADMIN memiliki dashboard pendaftaran, verifikasi, pembayaran, dan aktivitas audit; tabel pendaftaran, pembayaran, serta pengumuman menampilkan data basis data. Bank soal, tes, kelayakan TKA, seleksi, laporan, dan verifikasi berkas masih berupa kerangka. Portal KEPSEK bersifat baca-saja; dashboard menampilkan progres tahapan dan kuota per jalur, sementara halaman laporan lain masih berupa kerangka. Semua halaman staf diperiksa kembali berdasarkan peran di server.
+Portal ADMIN memiliki dashboard berbasis data Prisma, pencarian/filter/paginasi pendaftar, verifikasi berkas, pembayaran, pengumuman, bank soal TKA, impor Excel, paket/sesi tes, kelayakan, penilaian, draf/publikasi seleksi, serta grafik dan ekspor laporan CSV/XLSX/PDF per periode. Portal KEPSEK bersifat baca-saja dan memiliki dashboard monitoring, pendaftaran, hasil tes, hasil seleksi terbit, statistik, pembayaran, serta laporan eksekutif. Tabel monitoring membatasi tampilan hingga 100 baris terbaru. Semua halaman dan mutasi staf memeriksa peran di server.
+
+Penilaian seleksi menggunakan TKA 60%, rapor 30%, dan prestasi 10%. Karena skema saat ini belum memiliki skor prestasi numerik, komponen prestasi memakai bukti prestasi yang disetujui (100) atau tidak ada (0). Alokasi cadangan saat ini maksimum 10% kuota per jalur, minimal satu untuk jalur berkuota; pastikan kebijakan ini disetujui sebelum publikasi hasil resmi. Fitur email memerlukan Resend, upload berkas memerlukan Neon Object Storage S3, dan pembatasan laju produksi memerlukan Upstash. Jika storage belum dikonfigurasi, unggah berkas akan memberi pesan bahwa penyimpanan belum tersedia; gunakan konfigurasi layanan sebelum menguji alur upload produksi.
 
 Buat akun ADMIN atau KEPSEK pertama di terminal pada lingkungan yang memiliki akses ke basis data. Masukkan email asli staf dan nama saat menjalankan perintah; kata sandi diminta secara interaktif tanpa ditampilkan:
 
@@ -73,6 +75,14 @@ pnpm dev
 ```
 
 Buka `http://localhost:3000`. Periksa kualitas kode dengan `pnpm lint`, `pnpm typecheck`, dan `pnpm build`.
+
+Untuk pemeriksaan rute otomatis, jalankan aplikasi development dengan akun demo seed aktif, lalu di terminal lain:
+
+```powershell
+pnpm smoke-test
+```
+
+Smoke test memakai sesi akun demo melalui provider development (tanpa kata sandi), memeriksa rute utama ketiga peran dan redirect tanpa sesi, serta menulis catatan login ke AuditLog. Jangan gunakan provider demo di produksi. URL target dapat diubah lewat `SMOKE_BASE_URL`.
 
 ## Vercel
 

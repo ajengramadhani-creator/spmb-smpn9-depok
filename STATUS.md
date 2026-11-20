@@ -28,7 +28,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 7 — Penutup
 
-**Belum selesai.** Smoke test lintas rute, alur ujung ke ujung, validasi bersih, dan ringkasan akhir masih diperlukan.
+**Sebagian selesai.** `pnpm smoke-test` memeriksa rute publik, pengalihan tanpa sesi, rute utama ketiga peran, batas portal lintas-role, serta penolakan API laporan untuk KEPSEK; seluruh pemeriksaan lulus. README setup, akun staf, layanan opsional, kebijakan seleksi, dan smoke test diperbarui. `pnpm lint`, `pnpm typecheck`, dan `pnpm build` lulus pada validasi akhir. Alur ujung-ke-ujung pendaftaran sampai publikasi hasil belum dapat diverifikasi: `AWS_ENDPOINT`, kredensial storage, Resend, Upstash, dan Midtrans tidak tersedia di lingkungan ini, sehingga upload berkas/transfer dan integrasi layanan belum bisa diuji nyata.
 
 ## Bug diketahui
 
