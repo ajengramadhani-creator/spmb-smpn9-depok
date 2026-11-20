@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { Role } from "@prisma/client";
-import { createPrivateFileUrl, createStorageKey, deletePrivateFile, privateFileRedirect, uploadPrivateFile } from "@/lib/storage";
+import { createPrivateFileUrl, createStorageKey, deletePrivateFile, privateFileRedirect, storageConfigurationErrorResponse, uploadPrivateFile } from "@/lib/storage";
 import { requireRole, roleErrorResponse } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 
@@ -33,7 +33,11 @@ export async function POST(request: Request) {
   }
   const image = await processor.resize(512, 512, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
   const key = createStorageKey(`profil/${user.id}`, "jpg");
-  await uploadPrivateFile(key, image, "image/jpeg");
+  try {
+    await uploadPrivateFile(key, image, "image/jpeg");
+  } catch (error) {
+    return storageConfigurationErrorResponse(error);
+  }
   const previous = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { image: true } });
   try {
     await prisma.user.update({ where: { id: user.id }, data: { image: key } });
@@ -42,7 +46,11 @@ export async function POST(request: Request) {
     throw error;
   }
   if (previous.image?.startsWith(`profil/${user.id}/`)) await deletePrivateFile(previous.image);
-  return Response.json({ url: await createPrivateFileUrl(key) }, { headers: { "Cache-Control": "private, no-store" } });
+  try {
+    return Response.json({ url: await createPrivateFileUrl(key) }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    return storageConfigurationErrorResponse(error);
+  }
 }
 
 export async function GET() {

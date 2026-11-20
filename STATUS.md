@@ -12,7 +12,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 3 — Portal siswa
 
-**Sebagian selesai.** Dashboard, formulir lima tahap, dokumen, pembayaran, hasil, pengumuman, notifikasi, dan profil sudah memiliki implementasi berbasis Prisma. Alur ujung ke ujung dan fallback layanan eksternal belum divalidasi pada rangkaian tugas ini.
+**Sebagian selesai.** Dashboard, formulir lima tahap, dokumen, pembayaran, hasil, pengumuman, notifikasi, dan profil memakai data Prisma. Aksi formulir/notifikasi/profil/ujian menampilkan pesan saat server action gagal; storage yang belum dikonfigurasi mengembalikan 503 yang jelas. Magic bytes diuji menolak berkas palsu dan rute siswa diuji tanpa error halaman. Upload nyata dan signed URL belum dapat diuji karena seluruh `AWS_*` belum dikonfigurasi.
 
 ## Tahap 4 — Admin inti
 

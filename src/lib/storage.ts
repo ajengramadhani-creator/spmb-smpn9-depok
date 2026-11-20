@@ -6,10 +6,22 @@ import { getEnv } from "@/lib/env";
 const bucket = "uploads";
 let client: S3Client | undefined;
 
+export class StorageNotConfiguredError extends Error {
+  constructor() {
+    super("Penyimpanan berkas belum dikonfigurasi.");
+    this.name = "StorageNotConfiguredError";
+  }
+}
+
+export function storageConfigurationErrorResponse(error: unknown) {
+  if (!(error instanceof StorageNotConfiguredError)) throw error;
+  return Response.json({ pesan: error.message }, { status: 503 });
+}
+
 function storageClient() {
   const { AWS_ENDPOINT, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY } = getEnv();
   if (!AWS_ENDPOINT || !AWS_REGION || !AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-    throw new Error("Penyimpanan berkas belum dikonfigurasi.");
+    throw new StorageNotConfiguredError();
   }
   client ??= new S3Client({
     endpoint: AWS_ENDPOINT,
@@ -42,8 +54,12 @@ export async function createPrivateFileUrl(key: string, expiresIn = 300) {
 }
 
 export async function privateFileRedirect(key: string) {
-  const response = Response.redirect(await createPrivateFileUrl(key), 307);
-  response.headers.set("Cache-Control", "private, no-store");
-  response.headers.set("Referrer-Policy", "no-referrer");
-  return response;
+  try {
+    const response = Response.redirect(await createPrivateFileUrl(key), 307);
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.set("Referrer-Policy", "no-referrer");
+    return response;
+  } catch (error) {
+    return storageConfigurationErrorResponse(error);
+  }
 }

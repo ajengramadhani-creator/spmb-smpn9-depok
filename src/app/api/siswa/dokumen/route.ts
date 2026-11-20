@@ -1,5 +1,5 @@
 import { DocumentType, Role } from "@prisma/client";
-import { createStorageKey, deletePrivateFile, uploadPrivateFile } from "@/lib/storage";
+import { createStorageKey, deletePrivateFile, storageConfigurationErrorResponse, uploadPrivateFile } from "@/lib/storage";
 import { requireRole, roleErrorResponse } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 
@@ -56,7 +56,11 @@ export async function POST(request: Request) {
   });
   if (!registration) return Response.json({ pesan: "Pendaftaran tidak ditemukan." }, { status: 404 });
   const key = createStorageKey(`pendaftaran/${registration.registrationNo}/dokumen`, detected.extension);
-  await uploadPrivateFile(key, bytes, detected.mime);
+  try {
+    await uploadPrivateFile(key, bytes, detected.mime);
+  } catch (error) {
+    return storageConfigurationErrorResponse(error);
+  }
   const previous = await prisma.document.findMany({
       where: { registrationId, type: allowedTypes[typeValue] },
       select: { id: true, storageKey: true },

@@ -131,28 +131,40 @@ function RegistrationForm({ data }: { data: PortalData }) {
       values = Object.fromEntries(formData.entries());
       if (activeStage === 2) (values as FormValues).graduationYear = String(formData.get("graduationYear") ?? "");
     }
-    const result = await saveRegistrationStage(activeStage, values);
-    setBusy(false);
-    if (!result.ok) {
-      setError(result.message);
-      return;
+    try {
+      const result = await saveRegistrationStage(activeStage, values);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      setDirty(false);
+      setMessage(result.message);
+      setSavedSections((current) => new Set([...current, String(activeStage)]));
+      setValuesByStage((current) => ({ ...current, [String(activeStage)]: values }));
+      router.refresh();
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Bagian formulir belum berhasil disimpan. Periksa koneksi, lalu coba lagi.");
+    } finally {
+      setBusy(false);
     }
-    setDirty(false);
-    setMessage(result.message);
-    setSavedSections((current) => new Set([...current, String(activeStage)]));
-    setValuesByStage((current) => ({ ...current, [String(activeStage)]: values }));
-    router.refresh();
   }
 
   async function sendForm() {
     if (!window.confirm("Kirim formulir pendaftaran? Data tidak dapat diubah setelah dikirim.")) return;
     setBusy(true);
     setError("");
-    const result = await submitRegistration();
-    setBusy(false);
-    setMessage(result.message);
-    if (!result.ok) setError(result.message ?? "Formulir belum dapat dikirim.");
-    else router.refresh();
+    try {
+      const result = await submitRegistration();
+      setMessage(result.message);
+      if (!result.ok) setError(result.message ?? "Formulir belum dapat dikirim.");
+      else router.refresh();
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Formulir belum berhasil dikirim. Periksa koneksi, lalu coba lagi.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   const summary = [
@@ -299,12 +311,19 @@ function PaymentPage({ data }: { data: PortalData }) {
   }
   async function check(invoiceId: string) {
     setBusy(true);
-    const result = await refreshInvoiceStatus(invoiceId);
-    setBusy(false);
-    if (!result.ok) setError(result.message ?? "Status pembayaran tidak dapat diperiksa.");
-    else {
-      setMessage(result.status === "LUNAS" ? "Pembayaran telah lunas." : "Pembayaran masih menunggu konfirmasi.");
-      router.refresh();
+    setError("");
+    try {
+      const result = await refreshInvoiceStatus(invoiceId);
+      if (!result.ok) setError(result.message ?? "Status pembayaran tidak dapat diperiksa.");
+      else {
+        setMessage(result.status === "LUNAS" ? "Pembayaran telah lunas." : "Pembayaran masih menunggu konfirmasi.");
+        router.refresh();
+      }
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Status pembayaran belum berhasil diperiksa. Coba lagi.");
+    } finally {
+      setBusy(false);
     }
   }
   if (!registration) return <EmptyState title="Belum ada tagihan" description="Tagihan akan tersedia setelah formulir pendaftaran dikirim dan biaya ditetapkan." />;
@@ -360,20 +379,26 @@ function AnnouncementsPage({ data, detailId }: { data: PortalData; detailId?: st
   const router = useRouter();
   const [category, setCategory] = useState("SEMUA");
   const [tab, setTab] = useState("SEMUA");
+  const [error, setError] = useState("");
   const announcement = detailId ? data.announcements.find((item) => item.id === detailId) : null;
   useEffect(() => {
-    if (announcement && !announcement.reads.length) void markAnnouncementRead(announcement.id);
+    if (announcement && !announcement.reads.length) {
+      void markAnnouncementRead(announcement.id).catch((actionError: unknown) => {
+        if (!(actionError instanceof Error)) throw actionError;
+        setError("Status baca pengumuman belum berhasil disimpan.");
+      });
+    }
   }, [announcement]);
   if (detailId) {
     if (!announcement) return <EmptyState title="Pengumuman tidak ditemukan" description="Pengumuman mungkin tidak lagi tersedia." />;
-    return <Panel><button onClick={() => router.push("/siswa/pengumuman")} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft aria-hidden="true" className="size-4" />Kembali ke pengumuman</button><span className="block text-xs font-semibold uppercase tracking-wide text-primary">{announcement.type}</span><h2 className="mt-2 text-2xl font-bold text-navy">{announcement.title}</h2><p className="mt-2 text-sm text-slate-500">{announcement.publishedAt ? dateLong(announcement.publishedAt) : ""}</p><div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-slate-700">{announcement.body}</div>{announcement.attachments.length > 0 && <div className="mt-6 border-t border-slate-100 pt-5"><h3 className="font-semibold text-navy">Lampiran</h3><ul className="mt-3 space-y-2">{announcement.attachments.map((attachment) => <li key={attachment.id}><a href={`/api/siswa/pengumuman/${announcement.id}/lampiran/${attachment.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary"><Download aria-hidden="true" className="size-4" />{attachment.fileName}</a></li>)}</ul></div>}</Panel>;
+    return <div className="space-y-4">{error && <Notice kind="error">{error}</Notice>}<Panel><button onClick={() => router.push("/siswa/pengumuman")} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft aria-hidden="true" className="size-4" />Kembali ke pengumuman</button><span className="block text-xs font-semibold uppercase tracking-wide text-primary">{announcement.type}</span><h2 className="mt-2 text-2xl font-bold text-navy">{announcement.title}</h2><p className="mt-2 text-sm text-slate-500">{announcement.publishedAt ? dateLong(announcement.publishedAt) : ""}</p><div className="mt-6 whitespace-pre-wrap text-sm leading-7 text-slate-700">{announcement.body}</div>{announcement.attachments.length > 0 && <div className="mt-6 border-t border-slate-100 pt-5"><h3 className="font-semibold text-navy">Lampiran</h3><ul className="mt-3 space-y-2">{announcement.attachments.map((attachment) => <li key={attachment.id}><a href={`/api/siswa/pengumuman/${announcement.id}/lampiran/${attachment.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm font-medium text-primary"><Download aria-hidden="true" className="size-4" />{attachment.fileName}</a></li>)}</ul></div>}</Panel></div>;
   }
   const filtered = data.announcements.filter((item) =>
     (category === "SEMUA" || item.type === category) &&
     (tab === "SEMUA" || (tab === "BELUM_DIBACA" ? !item.reads.length : Boolean(item.reads.length))),
   );
-  return <div className="space-y-4"><Panel><div className="flex flex-wrap gap-3"><label className="text-sm font-medium text-slate-700">Kategori<select value={category} onChange={(event) => setCategory(event.target.value)} className="ml-2 h-10 rounded-lg border border-slate-300 bg-white px-3"><option value="SEMUA">Semua kategori</option><option value="UMUM">Umum</option><option value="JADWAL">Jadwal</option><option value="HASIL">Hasil</option><option value="PEMBAYARAN">Pembayaran</option></select></label><div className="flex gap-2" role="tablist" aria-label="Status baca">{[["SEMUA", "Semua"], ["BELUM_DIBACA", "Belum dibaca"], ["SUDAH_DIBACA", "Sudah dibaca"]].map(([value, label]) => <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${tab === value ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>)}</div></div></Panel>
-    {filtered.length ? filtered.map((item) => <Link key={item.id} href={`/siswa/pengumuman/${item.id}`} onClick={() => void markAnnouncementRead(item.id)} className="block rounded-xl border border-slate-200 bg-white p-5 shadow-panel transition hover:border-blue-200"><div className="flex items-start justify-between gap-3"><div><span className="text-[11px] font-semibold uppercase tracking-wide text-primary">{item.type}</span><h2 className="mt-1 font-semibold text-navy">{item.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{item.body}</p></div>{item.reads.length ? <span className="text-xs text-slate-400">Dibaca</span> : <span className="size-2 shrink-0 rounded-full bg-primary" />}</div><p className="mt-3 text-xs text-slate-500">{item.publishedAt ? dateLong(item.publishedAt) : ""} · {item.attachments.length} lampiran</p></Link>) : <EmptyState title="Belum ada pengumuman" description="Pengumuman sesuai filter ini akan muncul di sini." />}
+  return <div className="space-y-4">{error && <Notice kind="error">{error}</Notice>}<Panel><div className="flex flex-wrap gap-3"><label className="text-sm font-medium text-slate-700">Kategori<select value={category} onChange={(event) => setCategory(event.target.value)} className="ml-2 h-10 rounded-lg border border-slate-300 bg-white px-3"><option value="SEMUA">Semua kategori</option><option value="UMUM">Umum</option><option value="JADWAL">Jadwal</option><option value="HASIL">Hasil</option><option value="PEMBAYARAN">Pembayaran</option></select></label><div className="flex gap-2" role="tablist" aria-label="Status baca">{[["SEMUA", "Semua"], ["BELUM_DIBACA", "Belum dibaca"], ["SUDAH_DIBACA", "Sudah dibaca"]].map(([value, label]) => <button key={value} role="tab" aria-selected={tab === value} onClick={() => setTab(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${tab === value ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>)}</div></div></Panel>
+    {filtered.length ? filtered.map((item) => <Link key={item.id} href={`/siswa/pengumuman/${item.id}`} className="block rounded-xl border border-slate-200 bg-white p-5 shadow-panel transition hover:border-blue-200"><div className="flex items-start justify-between gap-3"><div><span className="text-[11px] font-semibold uppercase tracking-wide text-primary">{item.type}</span><h2 className="mt-1 font-semibold text-navy">{item.title}</h2><p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">{item.body}</p></div>{item.reads.length ? <span className="text-xs text-slate-400">Dibaca</span> : <span className="size-2 shrink-0 rounded-full bg-primary" />}</div><p className="mt-3 text-xs text-slate-500">{item.publishedAt ? dateLong(item.publishedAt) : ""} · {item.attachments.length} lampiran</p></Link>) : <EmptyState title="Belum ada pengumuman" description="Pengumuman sesuai filter ini akan muncul di sini." />}
   </div>;
 }
 
@@ -381,15 +406,22 @@ function NotificationsPage({ data }: { data: PortalData }) {
   const router = useRouter();
   const [filter, setFilter] = useState("SEMUA");
   const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
   const notifications = data.notifications.filter((item) => filter === "SEMUA" || (filter === "BELUM_DIBACA" ? item.status === "MENUNGGU" : item.status !== "MENUNGGU"));
   async function mark(id?: string) {
-    const result = await markNotificationsRead(id);
-    if (result.ok) {
-      setMessage(id ? "Notifikasi ditandai telah dibaca." : "Semua notifikasi ditandai telah dibaca.");
-      router.refresh();
+    setError("");
+    try {
+      const result = await markNotificationsRead(id);
+      if (result.ok) {
+        setMessage(id ? "Notifikasi ditandai telah dibaca." : "Semua notifikasi ditandai telah dibaca.");
+        router.refresh();
+      }
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Status notifikasi belum berhasil diperbarui.");
     }
   }
-  return <div className="space-y-4"><Panel><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2">{[["SEMUA", "Semua"], ["BELUM_DIBACA", "Belum dibaca"], ["SUDAH_DIBACA", "Sudah dibaca"]].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${filter === value ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>)}</div><Button variant="secondary" size="sm" disabled={!data.unreadNotificationCount} onClick={() => void mark()}><Check aria-hidden="true" className="size-4" />Tandai semua dibaca</Button></div></Panel>
+  return <div className="space-y-4">{error && <Notice kind="error">{error}</Notice>}<Panel><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex gap-2">{[["SEMUA", "Semua"], ["BELUM_DIBACA", "Belum dibaca"], ["SUDAH_DIBACA", "Sudah dibaca"]].map(([value, label]) => <button key={value} onClick={() => setFilter(value)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${filter === value ? "bg-primary text-white" : "bg-slate-100 text-slate-600"}`}>{label}</button>)}</div><Button variant="secondary" size="sm" disabled={!data.unreadNotificationCount} onClick={() => void mark()}><Check aria-hidden="true" className="size-4" />Tandai semua dibaca</Button></div></Panel>
     {message && <Notice kind="success">{message}</Notice>}
     {notifications.length ? notifications.map((item) => <article key={item.id} className={`rounded-xl border p-4 ${item.status === "MENUNGGU" ? "border-blue-200 bg-white" : "border-slate-200 bg-slate-50"}`}><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-lg bg-pale text-primary"><Bell aria-hidden="true" className="size-4" /></span><div className="min-w-0 flex-1"><h2 className="font-semibold text-navy">{item.title}</h2><p className="mt-1 text-sm leading-6 text-slate-600">{item.body}</p><p className="mt-2 text-xs text-slate-400">{dateTime(item.createdAt)}</p></div>{item.status === "MENUNGGU" && <button className="text-xs font-semibold text-primary" onClick={() => void mark(item.id)}>Tandai dibaca</button>}</div></article>) : <EmptyState title="Tidak ada notifikasi" description="Informasi penting tentang pendaftaran akan tampil di halaman ini." />}
   </div>;
@@ -406,12 +438,18 @@ function ProfilePage({ data }: { data: PortalData }) {
     const values = Object.fromEntries(new FormData(event.currentTarget).entries());
     setBusy(true);
     setError("");
-    const result = await updateStudentProfile({ fullName: String(values.fullName ?? ""), phone: String(values.phone ?? ""), address: String(values.address ?? "") });
-    setBusy(false);
-    if (!result.ok) setError(result.message);
-    else {
-      setMessage(result.message);
-      router.refresh();
+    try {
+      const result = await updateStudentProfile({ fullName: String(values.fullName ?? ""), phone: String(values.phone ?? ""), address: String(values.address ?? "") });
+      if (!result.ok) setError(result.message);
+      else {
+        setMessage(result.message);
+        router.refresh();
+      }
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Profil belum berhasil diperbarui. Periksa koneksi, lalu coba lagi.");
+    } finally {
+      setBusy(false);
     }
   }
   async function changePassword(event: React.FormEvent<HTMLFormElement>) {
@@ -420,12 +458,18 @@ function ProfilePage({ data }: { data: PortalData }) {
     const values = Object.fromEntries(new FormData(formElement).entries());
     setBusy(true);
     setError("");
-    const result = await updateStudentPassword(String(values.currentPassword ?? ""), String(values.newPassword ?? ""));
-    setBusy(false);
-    if (!result.ok) setError(result.message);
-    else {
-      setMessage(result.message);
-      formElement.reset();
+    try {
+      const result = await updateStudentPassword(String(values.currentPassword ?? ""), String(values.newPassword ?? ""));
+      if (!result.ok) setError(result.message);
+      else {
+        setMessage(result.message);
+        formElement.reset();
+      }
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setError("Kata sandi belum berhasil diperbarui. Coba lagi.");
+    } finally {
+      setBusy(false);
     }
   }
   async function uploadPhoto(file?: File) {
@@ -450,7 +494,7 @@ function ProfilePage({ data }: { data: PortalData }) {
     }
   }
   return <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">{message && <Notice kind="success">{message}</Notice>}{error && <Notice kind="error">{error}</Notice>}
-    <Panel><div className="flex items-center gap-4"><div className="grid size-16 place-items-center overflow-hidden rounded-full bg-pale text-primary">{photo ? <Image src={photo} alt="Foto profil" width={64} height={64} unoptimized className="size-full object-cover" /> : <UserRound aria-hidden="true" className="size-7" />}</div><div><h2 className="font-semibold text-navy">Foto profil</h2><p className="mt-1 text-xs text-slate-500">JPG atau PNG · Maksimal 2 MB</p></div></div><label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Upload aria-hidden="true" className="size-4" />Ganti foto<input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" className="sr-only" onChange={(event) => void uploadPhoto(event.target.files?.[0])} /></label>{busy && <span className="ml-3 text-xs text-slate-500">Memproses...</span>}</Panel>
+    <Panel><div className="flex items-center gap-4"><div className="grid size-16 place-items-center overflow-hidden rounded-full bg-pale text-primary">{photo ? <Image src={photo} alt="Foto profil" width={64} height={64} unoptimized className="size-full object-cover" onError={() => setPhoto("")} /> : <UserRound aria-hidden="true" className="size-7" />}</div><div><h2 className="font-semibold text-navy">Foto profil</h2><p className="mt-1 text-xs text-slate-500">JPG atau PNG · Maksimal 2 MB</p></div></div><label className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Upload aria-hidden="true" className="size-4" />Ganti foto<input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" className="sr-only" onChange={(event) => void uploadPhoto(event.target.files?.[0])} /></label>{busy && <span className="ml-3 text-xs text-slate-500">Memproses...</span>}</Panel>
     <Panel><h2 className="font-semibold text-navy">Data diri</h2><form onSubmit={saveProfile} className="mt-4 grid gap-4"><Field label="Nama lengkap" name="fullName" defaultValue={data.student?.fullName ?? data.user.name} /><Field label="Email" name="email" type="email" defaultValue={data.user.email} required={false} readOnly /><Field label="Nomor telepon" name="phone" type="tel" defaultValue={data.student?.phone ?? ""} /><label className="text-sm font-medium text-slate-700">Alamat<textarea name="address" minLength={8} required defaultValue={data.student?.address ?? ""} className="mt-1.5 min-h-24 w-full rounded-lg border border-slate-300 p-3 text-sm" /></label><Button disabled={busy}>Simpan perubahan</Button></form></Panel>
     <Panel className="xl:col-span-2"><h2 className="flex items-center gap-2 font-semibold text-navy"><LockKeyhole aria-hidden="true" className="size-5 text-primary" />Ganti kata sandi</h2><form onSubmit={changePassword} className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Kata sandi saat ini" name="currentPassword" type="password" /><Field label="Kata sandi baru (minimal 12 karakter)" name="newPassword" type="password" /><div className="sm:col-span-2"><Button variant="secondary" disabled={busy}>Ganti kata sandi</Button></div></form></Panel>
   </div>;
@@ -483,6 +527,9 @@ function ExamPage({ exam }: { exam: ExamData }) {
       void submitTest(exam.id).then((result) => {
         setSubmitted(result.ok);
         setMessage(result.message ?? "");
+      }).catch((actionError: unknown) => {
+        if (!(actionError instanceof Error)) throw actionError;
+        setMessage("Ujian belum berhasil dikirim. Hubungi panitia sebelum waktu berakhir.");
       });
     }
   }, [exam, initialized, remaining]);
@@ -497,16 +544,27 @@ function ExamPage({ exam }: { exam: ExamData }) {
   async function save(questionId: string, optionId: string | undefined, isFlagged: boolean) {
     setAnswers((currentAnswers) => ({ ...currentAnswers, [questionId]: { optionId, isFlagged } }));
     setSaving(true);
-    const result = await saveTestAnswer({ participantId: activeExam.id, questionId, optionId, flagged: isFlagged });
-    setSaving(false);
-    if (!result.ok) setMessage(result.message ?? "Jawaban belum tersimpan.");
-    else setMessage("Jawaban tersimpan otomatis.");
+    try {
+      const result = await saveTestAnswer({ participantId: activeExam.id, questionId, optionId, flagged: isFlagged });
+      if (!result.ok) setMessage(result.message ?? "Jawaban belum tersimpan.");
+      else setMessage("Jawaban tersimpan otomatis.");
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setMessage("Jawaban belum tersimpan. Periksa koneksi dan coba lagi.");
+    } finally {
+      setSaving(false);
+    }
   }
   async function finish() {
     if (!window.confirm("Akhiri ujian dan kirim jawaban sekarang? Jawaban tidak dapat diubah setelah dikirim.")) return;
-    const result = await submitTest(activeExam.id);
-    setSubmitted(result.ok);
-    setMessage(result.message ?? "Ujian tidak dapat diselesaikan.");
+    try {
+      const result = await submitTest(activeExam.id);
+      setSubmitted(result.ok);
+      setMessage(result.message ?? "Ujian tidak dapat diselesaikan.");
+    } catch (actionError) {
+      if (!(actionError instanceof Error)) throw actionError;
+      setMessage("Ujian belum berhasil dikirim. Periksa koneksi dan coba lagi.");
+    }
   }
   return <div className="space-y-4"><Notice><span className="inline-flex items-center gap-2"><ShieldCheck aria-hidden="true" className="size-4" />Jawaban tersimpan otomatis. Jangan tutup halaman sebelum menekan tombol selesai.</span></Notice>
     <Panel><div className="flex flex-wrap items-center justify-between gap-4"><div><h2 className="text-lg font-semibold text-navy">{activeExam.title}</h2><p className="mt-1 text-sm text-slate-500">{answeredCount} dari {activeExam.questions.length} soal terjawab</p></div><div className={`rounded-xl px-4 py-2 font-mono text-lg font-bold ${time < 300 ? "bg-red-50 text-red-700" : "bg-pale text-primary"}`} aria-live="polite"><Clock3 aria-hidden="true" className="mr-2 inline size-5" />{remainingLabel}</div></div>

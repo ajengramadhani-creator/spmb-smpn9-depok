@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Role } from "@prisma/client";
-import { createStorageKey, deletePrivateFile, uploadPrivateFile } from "@/lib/storage";
+import { createStorageKey, deletePrivateFile, storageConfigurationErrorResponse, uploadPrivateFile } from "@/lib/storage";
 import { requireRole, roleErrorResponse } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 import { manualTransferProvider, midtransProvider, type StudentPaymentMethod } from "@/server/services/payment-providers";
@@ -60,7 +60,11 @@ export async function POST(request: Request) {
     const bytes = Buffer.from(await evidence.arrayBuffer());
     if (!isAllowedProof(evidence, bytes)) return Response.json({ pesan: "Bukti harus berupa PDF, JPG, atau PNG yang valid." }, { status: 400 });
     evidenceKey = createStorageKey(`pendaftaran/${invoice.registration.registrationNo}/pembayaran`, evidence.name.split(".").pop()?.toLowerCase() ?? "pdf");
-    await uploadPrivateFile(evidenceKey, bytes, evidence.type);
+    try {
+      await uploadPrivateFile(evidenceKey, bytes, evidence.type);
+    } catch (error) {
+      return storageConfigurationErrorResponse(error);
+    }
     try {
       providerResult = await manualTransferProvider.createPayment({ ...providerRequest, evidenceKey });
     } catch (error) {
