@@ -24,7 +24,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 6 — Kepala sekolah dan laporan
 
-**Sebagian selesai.** Dashboard monitoring dan kerangka baca-saja sudah tersedia; isi data dan ekspor laporan perlu diaudit.
+**Sebagian selesai.** Dashboard dan enam halaman KEPSEK (pendaftaran, hasil tes, hasil seleksi versi terbit, statistik, pembayaran, dan laporan eksekutif) membaca data periode aktif tanpa aksi mutasi. Data tabel dibatasi maksimal 100 baris terbaru. Admin memiliki grafik pendaftar per jalur/wilayah/asal sekolah dan tren harian, filter periode, serta ekspor CSV/XLSX/PDF; ekspor melindungi CSV dari formula injection dan hanya dapat diakses ADMIN. Seluruh enam rute KEPSEK diuji manual dengan HTTP 200, ketiga format ekspor Admin HTTP 200, dan akses API laporan oleh KEPSEK ditolak HTTP 403. Hasil statistik per kota/sekolah bergantung pada kelengkapan data asal sekolah.
 
 ## Tahap 7 — Penutup
 

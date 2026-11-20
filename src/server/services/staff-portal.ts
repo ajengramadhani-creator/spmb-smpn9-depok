@@ -1,4 +1,5 @@
-import { InvoiceStatus, RegistrationStatus, SelectionVersionStatus } from "@prisma/client";
+import { InvoiceStatus, RegistrationStatus, Role, SelectionVersionStatus } from "@prisma/client";
+import { requireRole } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 
 const verifiedStatuses = [
@@ -31,6 +32,7 @@ function getDailySeries(dates: Date[]) {
 }
 
 export async function getAdminDashboardData() {
+  await requireRole([Role.ADMIN]);
   const period = await prisma.academicPeriod.findFirst({
     where: { isActive: true },
     orderBy: { startsAt: "desc" },
@@ -98,6 +100,7 @@ export async function getAdminDashboardData() {
 }
 
 export async function getKepsekDashboardData() {
+  await requireRole([Role.KEPSEK]);
   const period = await prisma.academicPeriod.findFirst({
     where: { isActive: true },
     include: { tracks: { where: { isActive: true }, orderBy: { type: "asc" } } },

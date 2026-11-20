@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RegistrationStatus, ReviewStatus, type Prisma } from "@prisma/client";
+import { RegistrationStatus, ReviewStatus, Role, type Prisma } from "@prisma/client";
 import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,8 +25,11 @@ import {
   TestPackageForm,
   TestSessionForm,
 } from "@/components/admin/assessment-tools";
+import { AnalyticsCharts } from "@/components/admin/analytics-charts";
 import { prisma } from "@/lib/db/prisma";
+import { requireRole } from "@/lib/auth/authorization";
 import { getRegistrationEligibility } from "@/server/services/assessment";
+import { getAdminAnalyticsData } from "@/server/services/analytics";
 
 const pageTitles: Record<string, string> = {
   pendaftaran: "Pendaftaran Siswa",
@@ -91,6 +94,7 @@ export default async function AdminPage({
   const [{ slug }, query] = await Promise.all([params, searchParams]);
   const title = pageTitles[slug.join("/")];
   if (!title) notFound();
+  await requireRole([Role.ADMIN]);
 
   let content;
   if (slug[0] === "pendaftaran") {
@@ -457,6 +461,56 @@ export default async function AdminPage({
         </section>
       </div>
     );
+  } else if (slug[0] === "laporan") {
+    const rawPeriodId = typeof query.period === "string" ? query.period : undefined;
+    const report = await getAdminAnalyticsData(rawPeriodId);
+    content = report.period ? (
+      <div className="space-y-6">
+        <section className={panelClass}>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-navy">Laporan penerimaan · {report.period.name}</h2>
+              <p className="mt-1 text-sm text-slate-500">{report.total.toLocaleString("id-ID")} pendaftar pada periode ini.</p>
+            </div>
+            <form method="get" className="flex flex-wrap items-end gap-3">
+              <div className="min-w-52">
+                <label htmlFor="report-period" className="mb-1.5 block text-sm font-medium text-slate-700">Periode laporan</label>
+                <Select id="report-period" name="period" defaultValue={report.period.id}>
+                  {report.periods.map((period) => <option key={period.id} value={period.id}>{period.name}{period.isActive ? " · Aktif" : ""}</option>)}
+                </Select>
+              </div>
+              <Button type="submit">Tampilkan</Button>
+            </form>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(["csv", "xlsx", "pdf"] as const).map((format) => (
+              <Link key={format} href={`/api/admin/laporan?period=${encodeURIComponent(report.period!.id)}&format=${format}`} className="inline-flex h-9 items-center rounded-lg border border-slate-300 px-3 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50">
+                Unduh {format.toUpperCase()}
+              </Link>
+            ))}
+          </div>
+        </section>
+        <AnalyticsCharts
+          byTrack={report.byTrack}
+          byCity={report.byCity.slice(0, 10)}
+          bySchool={report.bySchool}
+          dailyRegistrations={report.dailyRegistrations}
+        />
+        <section className={panelClass}>
+          <h2 className="mb-4 font-semibold text-navy">Pendaftar per jalur</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[760px] text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500"><tr><th className="px-3 py-3">Nomor pendaftaran</th><th className="px-3 py-3">Nama</th><th className="px-3 py-3">Jalur</th><th className="px-3 py-3">Wilayah</th><th className="px-3 py-3">Asal sekolah</th><th className="px-3 py-3">Status</th></tr></thead>
+              <tbody className="divide-y divide-slate-100">{report.registrations.slice(0, 100).map((registration) => (
+                <tr key={registration.registrationNo}><td className="px-3 py-3 font-medium text-slate-800">{registration.registrationNo}</td><td className="px-3 py-3 text-slate-700">{registration.student.fullName}</td><td className="px-3 py-3 text-slate-700">{registration.track.name}</td><td className="px-3 py-3 text-slate-700">{registration.student.schoolOrigin?.city ?? "—"}</td><td className="px-3 py-3 text-slate-700">{registration.student.schoolOrigin?.name ?? "—"}</td><td className="px-3 py-3"><StatusBadge status={formatStatus(registration.status)} /></td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+          {report.total > 100 && <p className="mt-3 text-sm text-slate-500">Menampilkan 100 pendaftar terbaru dari {report.total.toLocaleString("id-ID")}. Ekspor memuat seluruh data periode.</p>}
+          {!report.total && <EmptyState title="Belum ada data pendaftar" description="Data laporan akan muncul setelah pendaftaran masuk." />}
+        </section>
+      </div>
+    ) : <EmptyState title="Periode penerimaan belum tersedia" description="Laporan analitik akan tersedia setelah periode penerimaan dibuat." />;
   } else {
     content = (
       <EmptyState
