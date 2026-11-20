@@ -9,6 +9,14 @@ const statusStyles: Record<string, string> = {
   Lulus: "bg-green-50 text-green-700 ring-green-200",
   "Tidak Lulus": "bg-red-50 text-red-700 ring-red-200",
   Cadangan: "bg-sky-50 text-sky-700 ring-sky-200",
+  Terbit: "bg-green-50 text-green-700 ring-green-200",
+  "Menunggu verifikasi": "bg-amber-50 text-amber-700 ring-amber-200",
+  "Perlu perbaikan": "bg-amber-50 text-amber-700 ring-amber-200",
+  Terverifikasi: "bg-green-50 text-green-700 ring-green-200",
+  "Mengikuti seleksi": "bg-sky-50 text-sky-700 ring-sky-200",
+  "Belum dibayar": "bg-amber-50 text-amber-700 ring-amber-200",
+  Kedaluwarsa: "bg-red-50 text-red-700 ring-red-200",
+  Dibatalkan: "bg-slate-100 text-slate-600 ring-slate-200",
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

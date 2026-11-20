@@ -23,12 +23,14 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Cari data...",
   filters = [],
   pageSize = 10,
+  selectable = true,
 }: {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   searchPlaceholder?: string;
   filters?: TableFilter[];
   pageSize?: number;
+  selectable?: boolean;
 }) {
   const [globalFilter, setGlobalFilter] = useState("");
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -41,7 +43,7 @@ export function DataTable<TData, TValue>({
   };
   const table = useReactTable({
     data,
-    columns: [selectionColumn, ...columns],
+    columns: selectable ? [selectionColumn, ...columns] : columns,
     state: { globalFilter, rowSelection },
     onGlobalFilterChange: setGlobalFilter,
     onRowSelectionChange: setRowSelection,
