@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/authorization";
 import { prisma } from "@/lib/db/prisma";
 import { z } from "zod";
 import { createPrivateFileUrl } from "@/lib/storage";
+import { gradeParticipant } from "@/server/services/assessment";
 import {
   gradesDataSchema,
   guardianDataSchema,
@@ -311,26 +312,46 @@ export async function saveTestAnswer(input: { participantId: string; questionId:
 export async function submitTest(participantId: string) {
   const user = await requireRole([Role.SISWA], { redirectOnFailure: false });
   if (typeof participantId !== "string" || participantId.length > 128) return { ok: false, message: "Ujian tidak dapat diselesaikan." };
+  const now = new Date();
   const participant = await prisma.testParticipant.findFirst({
     where: {
       id: participantId,
       submittedAt: null,
       registration: { student: { userId: user.id }, status: { in: ["TERVERIFIKASI", "MENGIKUTI_SELEKSI"] } },
-      session: { status: { in: ["BERLANGSUNG", "SELESAI"] } },
+      session: { status: { in: ["BERLANGSUNG", "SELESAI"] }, startsAt: { lte: now } },
     },
-    select: { startedAt: true, session: { select: { endsAt: true, testPackage: { select: { durationMin: true } } } } },
+    select: { startedAt: true, registrationId: true },
   });
   if (!participant?.startedAt) return { ok: false, message: "Ujian tidak dapat diselesaikan." };
-  const result = await prisma.testParticipant.updateMany({
-    where: {
-      id: participantId,
-      submittedAt: null,
-      registration: { student: { userId: user.id }, status: { in: ["TERVERIFIKASI", "MENGIKUTI_SELEKSI"] } },
-      session: { status: { in: ["BERLANGSUNG", "SELESAI"] } },
-    },
-    data: { submittedAt: new Date() },
+  const result = await prisma.$transaction(async (transaction) => {
+    const updated = await transaction.testParticipant.updateMany({
+      where: {
+        id: participantId,
+        submittedAt: null,
+        registration: { student: { userId: user.id }, status: { in: ["TERVERIFIKASI", "MENGIKUTI_SELEKSI"] } },
+      },
+      data: { submittedAt: now },
+    });
+    if (!updated.count) return false;
+
+    await gradeParticipant(transaction, participantId, now);
+    const registration = await transaction.registration.findUnique({
+      where: { id: participant.registrationId },
+      select: { registrationNo: true, student: { select: { userId: true } } },
+    });
+    if (registration?.student.userId) {
+      await transaction.notification.create({
+        data: {
+          userId: registration.student.userId,
+          title: "Ujian TKA selesai",
+          body: `Jawaban ujian ${registration.registrationNo} telah tersimpan dan dinilai.`,
+          status: "MENUNGGU",
+        },
+      });
+    }
+    return true;
   });
-  if (!result.count) return { ok: false, message: "Ujian tidak dapat diselesaikan." };
+  if (!result) return { ok: false, message: "Ujian tidak dapat diselesaikan." };
   revalidatePath("/siswa/ujian");
   return { ok: true, message: "Jawaban ujian berhasil dikirim." };
 }

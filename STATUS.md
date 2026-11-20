@@ -20,7 +20,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 5 — Tes dan seleksi
 
-**Belum diaudit.** Kelengkapan CRUD, keamanan ujian, penilaian, kuota, publikasi transaksional, dan notifikasi perlu diperiksa.
+**Sebagian selesai.** Admin dapat mengelola kategori/soal pilihan ganda A–D, mengimpor soal Excel dengan laporan kesalahan, mengunduh templat, membuat paket dan sesi, menempatkan peserta yang memenuhi syarat, serta meninjau kelayakan. Ujian menyimpan jawaban melalui aksi server, tidak mengirim kunci jawaban ke klien, dan menilai otomatis saat dikirim atau sesi ditutup. Seleksi menghitung komponen TKA 60%, rapor 30%, prestasi 10%, menyusun draf/status/kuota per jalur, lalu memublikasikan hasil secara transaksional dengan notifikasi dan AuditLog. Lint, typecheck, build, dan render halaman utama Admin Tes/Seleksi lulus. Impor dan mutasi nyata belum diuji menyeluruh. Belum tersedia model skor prestasi, sehingga komponen prestasi saat ini menggunakan bukti yang disetujui (100/0); cadangan dibatasi 10% kuota (minimal satu jika kuota tidak nol). Kedua kebijakan tersebut perlu persetujuan pemilik produk.
 
 ## Tahap 6 — Kepala sekolah dan laporan
 

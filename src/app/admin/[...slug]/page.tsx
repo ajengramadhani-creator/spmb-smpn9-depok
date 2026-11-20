@@ -15,7 +15,18 @@ import {
   PaymentConfirmationForm,
   PaymentSettingsForm,
 } from "@/components/admin/admin-tools";
+import {
+  PublishSelectionForm,
+  QuestionCategoryForm,
+  QuestionForm,
+  QuestionImportForm,
+  SelectionDraftForm,
+  SessionTools,
+  TestPackageForm,
+  TestSessionForm,
+} from "@/components/admin/assessment-tools";
 import { prisma } from "@/lib/db/prisma";
+import { getRegistrationEligibility } from "@/server/services/assessment";
 
 const pageTitles: Record<string, string> = {
   pendaftaran: "Pendaftaran Siswa",
@@ -39,6 +50,9 @@ const statusLabels: Record<string, string> = {
   DITERIMA: "Diterima",
   DITOLAK: "Ditolak",
   CADANGAN: "Cadangan",
+  TERJADWAL: "Terjadwal",
+  BERLANGSUNG: "Berlangsung",
+  SELESAI: "Selesai",
   BELUM_DIBAYAR: "Belum dibayar",
   MENUNGGU: "Menunggu",
   LUNAS: "Lunas",
@@ -302,6 +316,144 @@ export default async function AdminPage({
               </details>
             );
           }) : <EmptyState title="Belum ada pengumuman" description="Buat pengumuman pertama untuk pendaftar." />}
+        </section>
+      </div>
+    );
+  } else if (slug[0] === "bank-soal") {
+    const [categories, questions] = await Promise.all([
+      prisma.questionCategory.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+      prisma.question.findMany({
+        take: 100,
+        orderBy: { createdAt: "desc" },
+        include: { category: { select: { name: true } }, options: { orderBy: { label: "asc" }, select: { label: true, content: true, isCorrect: true } } },
+      }),
+    ]);
+    content = (
+      <div className="space-y-6">
+        <section className={panelClass}>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div><h2 className="font-semibold text-navy">Impor soal dari Excel</h2><p className="mt-1 text-sm text-slate-500">Format .xlsx: kategori, pertanyaan, pilihan A–D, kunci, dan bobot nilai. Maksimal 1.000 baris.</p></div>
+            <Link href="/api/admin/bank-soal/templat" className="text-sm font-semibold text-primary hover:underline">Unduh templat Excel</Link>
+          </div>
+          <QuestionImportForm />
+        </section>
+        <section className={panelClass}>
+          <h2 className="mb-4 font-semibold text-navy">Kategori</h2>
+          <div className="mb-4 flex flex-wrap gap-2">{categories.map((category) => <span key={category.id} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700">{category.name}</span>)}</div>
+          <QuestionCategoryForm />
+        </section>
+        <section className={panelClass}>
+          <h2 className="mb-4 font-semibold text-navy">Tambah soal</h2>
+          {categories.length ? <QuestionForm categories={categories} /> : <EmptyState title="Buat kategori terlebih dahulu" description="Soal harus dimasukkan ke dalam kategori." />}
+        </section>
+        <section className={`${panelClass} space-y-3`}>
+          <h2 className="font-semibold text-navy">Daftar soal ({questions.length})</h2>
+          {questions.length ? questions.map((question) => (
+            <details key={question.id} className="rounded-lg border border-slate-200 p-4">
+              <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-slate-800">{question.prompt}</span>
+                <span className="text-xs text-slate-500">{question.category.name} · {Number(question.points)} poin · {question.isActive ? "Aktif" : "Nonaktif"}</span>
+              </summary>
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <QuestionForm categories={categories} initial={{ id: question.id, categoryId: question.categoryId, prompt: question.prompt, points: Number(question.points), isActive: question.isActive, options: question.options }} />
+              </div>
+            </details>
+          )) : <EmptyState title="Belum ada soal" description="Buat soal pilihan ganda atau impor dari berkas Excel." />}
+        </section>
+      </div>
+    );
+  } else if (slug[0] === "tes") {
+    const period = await prisma.academicPeriod.findFirst({ where: { isActive: true }, orderBy: { startsAt: "desc" }, select: { id: true, name: true } });
+    const [questions, packages, sessions] = await Promise.all([
+      prisma.question.findMany({ where: { isActive: true, type: "PILIHAN_GANDA" }, orderBy: { createdAt: "desc" }, take: 100, include: { category: { select: { name: true } } } }),
+      prisma.testPackage.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, include: { questions: { select: { questionId: true } } } }),
+      period ? prisma.testSession.findMany({
+        where: { academicPeriodId: period.id },
+        take: 30,
+        orderBy: { startsAt: "desc" },
+        include: {
+          testPackage: { select: { name: true, durationMin: true } },
+          _count: { select: { participants: true } },
+        },
+      }) : Promise.resolve([]),
+    ]);
+    const sessionIds = sessions.map((session) => session.id);
+    const [startedParticipants, submittedParticipants] = sessionIds.length ? await Promise.all([
+      prisma.testParticipant.groupBy({ by: ["sessionId"], where: { sessionId: { in: sessionIds }, startedAt: { not: null } }, _count: { _all: true } }),
+      prisma.testParticipant.groupBy({ by: ["sessionId"], where: { sessionId: { in: sessionIds }, submittedAt: { not: null } }, _count: { _all: true } }),
+    ]) : [[], []];
+    const startedBySession = new Map(startedParticipants.map((item) => [item.sessionId, item._count._all]));
+    const submittedBySession = new Map(submittedParticipants.map((item) => [item.sessionId, item._count._all]));
+    const packagesForForm = packages.map((item) => ({ id: item.id, name: item.name, durationMin: item.durationMin }));
+    const questionsForPackage = questions.map((question) => ({ id: question.id, prompt: question.prompt, category: question.category.name }));
+    content = (
+      <div className="space-y-6">
+        <section className={panelClass}><h2 className="mb-4 font-semibold text-navy">Buat paket soal</h2>{questionsForPackage.length ? <TestPackageForm questions={questionsForPackage} /> : <EmptyState title="Soal aktif belum tersedia" description="Tambahkan soal aktif pada Bank Soal TKA terlebih dahulu." />}</section>
+        <section className={panelClass}><h2 className="mb-4 font-semibold text-navy">Jadwalkan sesi ujian</h2>{period ? <TestSessionForm packages={packagesForForm} /> : <EmptyState title="Periode aktif belum tersedia" description="Sesi ujian harus terhubung ke periode penerimaan aktif." />}</section>
+        <section className={`${panelClass} space-y-3`}>
+          <h2 className="font-semibold text-navy">Sesi ujian · {period?.name ?? "Periode tidak aktif"}</h2>
+          {sessions.length ? sessions.map((session) => {
+            const started = startedBySession.get(session.id) ?? 0;
+            const submitted = submittedBySession.get(session.id) ?? 0;
+            return (
+              <article key={session.id} className="rounded-lg border border-slate-200 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div><h3 className="font-semibold text-slate-800">{session.title}</h3><p className="mt-1 text-sm text-slate-600">{session.testPackage.name} · {session.testPackage.durationMin} menit · {session._count.participants} peserta · {started} mulai · {submitted} selesai</p><p className="mt-1 text-xs text-slate-500">{formatDate(session.startsAt)} – {formatDate(session.endsAt)} WIB</p></div>
+                <StatusBadge status={formatStatus(session.status)} />
+              </div>
+              <SessionTools sessionId={session.id} status={session.status} />
+            </article>
+            );
+          }) : <EmptyState title="Belum ada sesi ujian" description="Buat paket soal lalu jadwalkan sesi." />}
+        </section>
+      </div>
+    );
+  } else if (slug[0] === "kelayakan") {
+    const period = await prisma.academicPeriod.findFirst({ where: { isActive: true }, orderBy: { startsAt: "desc" }, select: { id: true, name: true } });
+    const candidates = period ? await getRegistrationEligibility(period.id) : [];
+    content = period ? candidates.length ? (
+      <section className={panelClass}>
+        <p className="mb-4 text-sm text-slate-500">Syarat: status pendaftaran terverifikasi, lima berkas wajib disetujui, dan tagihan lunas. Periode {period.name}.</p>
+        <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs font-semibold uppercase text-slate-500"><tr><th className="px-3 py-3">Pendaftar</th><th className="px-3 py-3">Jalur</th><th className="px-3 py-3">Status kelayakan</th><th className="px-3 py-3">Alasan</th><th className="px-3 py-3">Ujian</th></tr></thead>
+          <tbody className="divide-y divide-slate-100">{candidates.map((candidate) => (
+            <tr key={candidate.id}><td className="px-3 py-3"><p className="font-medium text-slate-800">{candidate.student.fullName}</p><p className="text-xs text-slate-500">{candidate.registrationNo}</p></td><td className="px-3 py-3">{candidate.track.name}</td><td className="px-3 py-3"><StatusBadge status={candidate.isEligible ? "Terverifikasi" : "Belum layak"} /></td><td className="max-w-sm px-3 py-3 text-xs text-slate-600">{candidate.reasons.length ? candidate.reasons.join("; ") : "Memenuhi syarat"}</td><td className="px-3 py-3">{candidate.completedTest ? "Hasil tersedia" : "Belum mengikuti"}</td></tr>
+          ))}</tbody>
+        </table></div>
+      </section>
+    ) : <EmptyState title="Belum ada pendaftar" description="Data pendaftar pada periode aktif akan ditampilkan di sini." /> : <EmptyState title="Periode aktif belum tersedia" description="Kelayakan peserta memerlukan periode penerimaan aktif." />;
+  } else if (slug[0] === "seleksi") {
+    const [periods, versions] = await Promise.all([
+      prisma.academicPeriod.findMany({ orderBy: { startsAt: "desc" }, select: { id: true, name: true } }),
+      prisma.selectionVersion.findMany({
+        take: 20,
+        orderBy: [{ academicPeriod: { startsAt: "desc" } }, { version: "desc" }],
+        include: {
+          academicPeriod: { select: { name: true } },
+          _count: { select: { results: true } },
+          results: {
+            take: 40,
+            orderBy: { rank: "asc" },
+            include: { registration: { select: { registrationNo: true, student: { select: { fullName: true } }, track: { select: { name: true } } } } },
+          },
+        },
+      }),
+    ]);
+    content = (
+      <div className="space-y-6">
+        <section className={panelClass}><h2 className="mb-4 font-semibold text-navy">Buat draf hasil seleksi</h2><SelectionDraftForm periods={periods} /></section>
+        <section className={`${panelClass} space-y-3`}>
+          <h2 className="font-semibold text-navy">Versi hasil seleksi</h2>
+          {versions.length ? versions.map((version) => (
+            <details key={version.id} className="rounded-lg border border-slate-200 p-4">
+              <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2"><span className="font-medium text-slate-800">Versi {version.version} · {version.academicPeriod.name}</span><span className="flex items-center gap-2"><StatusBadge status={version.status === "TERBIT" ? "Terbit" : version.status === "DRAF" ? "Draf" : "Dibatalkan"} /><span className="text-xs text-slate-500">{version._count.results} hasil</span></span></summary>
+              <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+                <p className="text-xs text-slate-500">{version.notes ?? "Belum ada catatan penilaian."}{version.results.length < version._count.results ? ` · Menampilkan ${version.results.length} hasil pertama.` : ""}</p>
+                {version.results.length ? <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-left text-sm"><thead className="text-xs uppercase text-slate-500"><tr><th className="py-2">Peringkat</th><th className="py-2">Pendaftar</th><th className="py-2">Jalur</th><th className="py-2">Skor</th><th className="py-2">Hasil</th></tr></thead><tbody className="divide-y divide-slate-100">{version.results.map((result) => <tr key={result.id}><td className="py-2">{result.rank ?? "—"}</td><td className="py-2">{result.registration.student.fullName} · {result.registration.registrationNo}</td><td className="py-2">{result.registration.track.name}</td><td className="py-2">{result.score === null ? "—" : Number(result.score).toFixed(2)}</td><td className="py-2">{formatStatus(result.status)}</td></tr>)}</tbody></table></div> : <EmptyState title="Tidak ada hasil" description="Draf belum memiliki hasil untuk ditinjau." />}
+                {version.status === "DRAF" && <PublishSelectionForm selectionVersionId={version.id} />}
+              </div>
+            </details>
+          )) : <EmptyState title="Belum ada versi seleksi" description="Buat draf untuk menghitung hasil berdasarkan data pendaftaran, rapor, ujian, dan berkas." />}
         </section>
       </div>
     );
