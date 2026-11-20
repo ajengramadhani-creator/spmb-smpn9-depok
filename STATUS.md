@@ -16,7 +16,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 4 — Admin inti
 
-**Sebagian selesai.** Dashboard dan halaman dasar admin tersedia; kelengkapan pencarian, filter, paginasi, ekspor, tindakan verifikasi, dan konfigurasi perlu diaudit.
+**Sebagian selesai.** Dashboard memakai agregasi Prisma. Pendaftaran sekarang memiliki pencarian/filter/paginasi server-side, detail data siswa, ekspor Excel, dan penambahan manual sebagai draf. Antrean berkas mendukung viewer privat, persetujuan/perbaikan, notifikasi siswa, dan AuditLog. Pembayaran menampilkan transaksi, mendukung konfirmasi transfer manual, serta pengaturan biaya/rekening. Pengumuman dapat dibuat, ditargetkan per periode, diedit, dijadwalkan, dan menerbitkan notifikasi untuk publikasi langsung. Penayangan terjadwal mengikuti waktu `publishedAt`, tetapi pengiriman notifikasi terjadwal belum memiliki worker/scheduler; unggah bukti dan verifikasi berkas nyata belum dapat diuji tanpa storage terkonfigurasi.
 
 ## Tahap 5 — Tes dan seleksi
 
