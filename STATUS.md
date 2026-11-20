@@ -8,7 +8,7 @@ Pembaruan terakhir: 20 November 2026.
 
 ## Tahap 2 — Auth dan pintu masuk
 
-**Selesai sebelumnya.** Gerbang tiga portal, login terpisah dan pemeriksaan role, redirect relatif, pembatasan akses, reset password, skrip staf, serta masuk cepat development tersedia. Validasi ulang pada rangkaian tugas ini masih diperlukan.
+**Selesai.** Gerbang tiga portal, login terpisah dan pemeriksaan role, redirect relatif, reset password, skrip staf, serta masuk cepat development tersedia. Login siswa kini mencari NISN pada kolom NISN dan kolom NIK lama; pendaftaran menjaga keunikan NISN. Jika Upstash belum dikonfigurasi, pembatasan laju memakai memori proses dengan peringatan yang jelas. Tiga portal demo, logout, dan pengalihan role diuji manual.
 
 ## Tahap 3 — Portal siswa
 

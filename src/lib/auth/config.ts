@@ -47,7 +47,7 @@ async function authorizeForRole(
       ? {
           OR: [
             { email: normalizedIdentifier },
-            { student: { nationalId: normalizedIdentifier } },
+            { student: { OR: [{ nationalId: normalizedIdentifier }, { nisn: normalizedIdentifier }] } },
           ],
         }
       : { email: normalizedIdentifier },

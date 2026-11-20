@@ -86,7 +86,10 @@ export async function registerAction(_previous: AuthActionState | null, formData
   const { fullName, nationalId, email: rawEmail, phone, password } = parsed.data;
   const email = rawEmail.toLowerCase();
   const duplicate = await prisma.user.findUnique({ where: { email }, select: { id: true } })
-    ?? (await prisma.student.findUnique({ where: { nationalId }, select: { id: true } }) ? true : null);
+    ?? await prisma.student.findFirst({
+      where: { OR: [{ nationalId }, { nisn: nationalId }] },
+      select: { id: true },
+    });
   if (duplicate) return { status: "error", message: "NISN atau email sudah terdaftar." };
   if (process.env.NODE_ENV === "production" && !process.env.RESEND_API_KEY) {
     return { status: "error", message: "Layanan email belum dikonfigurasi. Silakan hubungi administrator SPMB." };
@@ -123,7 +126,7 @@ export async function registerAction(_previous: AuthActionState | null, formData
           student: {
             create: {
               fullName,
-              nationalId,
+              nisn: nationalId,
               phone,
               guardians: {
                 create: { name: "Orang tua/wali", relationship: "Orang tua/wali", phone, isPrimary: true },
