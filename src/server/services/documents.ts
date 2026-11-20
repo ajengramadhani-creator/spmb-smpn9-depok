@@ -7,8 +7,19 @@ export async function reviewDocument({ documentId, status, note }: { documentId:
   const reviewer = await requireRole([Role.ADMIN]);
   const review = await prisma.documentReview.create({
     data: { documentId, reviewerId: reviewer.id, status, note },
-    include: { document: true },
+    include: { document: { include: { registration: { include: { student: true } } } } },
   });
+  const studentUserId = review.document.registration.student.userId;
+  if ((status === "DITOLAK" || status === "PERLU_PERBAIKAN") && studentUserId) {
+    await prisma.notification.create({
+      data: {
+        userId: studentUserId,
+        title: "Berkas perlu diperbaiki",
+        body: note?.trim() || "Panitia meminta Anda memeriksa dan mengunggah ulang salah satu berkas persyaratan.",
+        status: "MENUNGGU",
+      },
+    });
+  }
   await writeAuditLog({ actorId: reviewer.id, action: "DOKUMEN_DITINJAU", entity: "Document", entityId: documentId, metadata: { status, note } });
   return review;
 }

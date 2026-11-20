@@ -1,8 +1,10 @@
 import { Role } from "@prisma/client";
 import { requireRole } from "@/lib/auth/authorization";
 import { PortalShell } from "@/components/layout/portal-shell";
+import { getStudentPortalData } from "@/server/services/student-portal";
 
 export default async function SiswaLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const user = await requireRole([Role.SISWA]);
-  return <PortalShell role="SISWA" name={user.name ?? "Calon murid"}>{children}</PortalShell>;
+  const data = await getStudentPortalData(user.id);
+  return <PortalShell role="SISWA" name={user.name ?? "Calon murid"} unreadCount={data.unreadNotificationCount}>{children}</PortalShell>;
 }

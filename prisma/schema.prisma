@@ -110,6 +110,7 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   student        Student?
+  registrationDraft RegistrationDraft?
   announcements  AnnouncementRead[]
   notifications  Notification[]
   exports        ReportExport[]
@@ -118,6 +119,16 @@ model User {
   selectionVersions SelectionVersion[]
 
   @@index([role, isActive])
+}
+
+model RegistrationDraft {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  data          Json     @default("{}")
+  savedSections String[] @default([])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AcademicPeriod {
@@ -158,6 +169,7 @@ model Student {
   userId         String?  @unique
   fullName       String
   nationalId     String?  @unique
+  nisn           String?  @unique
   birthPlace     String?
   birthDate      DateTime?
   gender         String?
@@ -245,7 +257,7 @@ model Document {
   registrationId String
   type           DocumentType
   fileName       String
-  fileUrl        String
+  storageKey     String
   mimeType       String
   sizeBytes      Int
   encryptionIv   String
@@ -416,6 +428,7 @@ model TestAnswer {
   questionId   String
   optionId     String?
   answerText   String?
+  isFlagged    Boolean @default(false)
   isCorrect    Boolean?
   pointsEarned Decimal? @db.Decimal(6, 2)
   answeredAt   DateTime @updatedAt
@@ -491,8 +504,21 @@ model Announcement {
   createdAt        DateTime @default(now())
   academicPeriod   AcademicPeriod? @relation(fields: [academicPeriodId], references: [id], onDelete: SetNull)
   reads            AnnouncementRead[]
+  attachments      AnnouncementAttachment[]
 
   @@index([publishedAt, type])
+}
+
+model AnnouncementAttachment {
+  id             String @id @default(cuid())
+  announcementId String
+  fileName       String
+  storageKey     String
+  mimeType       String
+  sizeBytes      Int
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@index([announcementId])
 }
 
 model AnnouncementRead {

@@ -14,8 +14,22 @@ export async function recordPaymentResult({ invoiceId, provider, providerRef, am
   return prisma.$transaction(async (transaction) => {
     const payment = await transaction.payment.create({
       data: { invoiceId, provider, providerRef, amount, status, paidAt: status === "BERHASIL" ? new Date() : null, rawResponse },
+      include: { invoice: { include: { registration: { include: { student: true } } } } },
     });
-    if (status === "BERHASIL") await transaction.invoice.update({ where: { id: invoiceId }, data: { status: "LUNAS" } });
+    if (status === "BERHASIL") {
+      await transaction.invoice.update({ where: { id: invoiceId }, data: { status: "LUNAS" } });
+      const userId = payment.invoice.registration.student.userId;
+      if (userId) {
+        await transaction.notification.create({
+          data: {
+            userId,
+            title: "Pembayaran berhasil",
+            body: `Pembayaran tagihan ${payment.invoice.invoiceNo} telah dikonfirmasi.`,
+            status: "MENUNGGU",
+          },
+        });
+      }
+    }
     return payment;
   });
 }

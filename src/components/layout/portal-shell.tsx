@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Bell, BookOpenCheck, ClipboardList, CreditCard, FileCheck2, FileText, LayoutDashboard, LogOut, Menu, Megaphone, Settings2, ShieldCheck, X } from "lucide-react";
+import { Bell, BookOpenCheck, ClipboardList, CreditCard, FileCheck2, FileText, LayoutDashboard, LogOut, Menu, Megaphone, Settings2, ShieldCheck, UserRound, X } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,11 @@ const navigation = {
     { href: "/siswa/pendaftaran", label: "Pendaftaran", icon: ClipboardList },
     { href: "/siswa/dokumen", label: "Dokumen", icon: FileText },
     { href: "/siswa/pembayaran", label: "Pembayaran", icon: CreditCard },
+    { href: "/siswa/ujian", label: "Ujian TKA", icon: BookOpenCheck },
+    { href: "/siswa/hasil", label: "Hasil seleksi", icon: ShieldCheck },
     { href: "/siswa/pengumuman", label: "Pengumuman", icon: Megaphone },
+    { href: "/siswa/notifikasi", label: "Notifikasi", icon: Bell },
+    { href: "/siswa/profil", label: "Profil", icon: UserRound },
   ],
   ADMIN: [
     { href: "/admin", label: "Ringkasan", icon: LayoutDashboard },
@@ -33,7 +37,7 @@ const navigation = {
 
 const roleName = { SISWA: "Portal Siswa", ADMIN: "Portal Admin", KEPSEK: "Portal Kepala Sekolah" };
 
-export function PortalShell({ role, name, children }: { role: keyof typeof navigation; name: string; children: React.ReactNode }) {
+export function PortalShell({ role, name, children, unreadCount = 0 }: { role: keyof typeof navigation; name: string; children: React.ReactNode; unreadCount?: number }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const studentTheme = role === "SISWA";
@@ -45,7 +49,7 @@ export function PortalShell({ role, name, children }: { role: keyof typeof navig
         <div><p className={cn("text-sm font-bold", studentTheme ? "text-navy" : "text-white")}>SPMB 2027</p><p className={cn("text-[11px]", studentTheme ? "text-slate-500" : "text-slate-400")}>SMPN 9 Depok</p></div>
         <button className="ml-auto grid size-8 place-items-center lg:hidden" aria-label="Tutup menu" onClick={() => setDrawerOpen(false)}><X aria-hidden="true" className="size-5" /></button>
       </div>
-      <div className="px-3 py-5"><p className={cn("mb-3 px-3 text-[10px] font-semibold uppercase", studentTheme ? "text-slate-500" : "text-slate-400")}>Menu utama</p>
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5"><p className={cn("mb-3 px-3 text-[10px] font-semibold uppercase", studentTheme ? "text-slate-500" : "text-slate-400")}>Menu utama</p>
         <nav className="space-y-1" aria-label="Navigasi portal">
           {navigation[role].map(({ href, label, icon: Icon }) => {
             const active = pathname === href || (href !== `/${role.toLowerCase()}` && pathname.startsWith(`${href}/`));
@@ -70,7 +74,7 @@ export function PortalShell({ role, name, children }: { role: keyof typeof navig
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6">
           <div className="flex items-center gap-3"><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Buka menu" onClick={() => setDrawerOpen(true)}><Menu aria-hidden="true" className="size-5" /></Button><span className="text-sm font-medium text-slate-500">{roleName[role]}</span></div>
-          <div className="flex items-center gap-2 sm:gap-4"><Button variant="ghost" size="icon" aria-label="Notifikasi"><Bell aria-hidden="true" className="size-5" /></Button><span className="hidden h-8 w-px bg-slate-200 sm:block" /><div className="text-right"><p className="max-w-40 truncate text-sm font-semibold text-navy">{name}</p><p className="text-xs text-slate-500">{role === "SISWA" ? "Calon murid" : role === "ADMIN" ? "Administrator" : "Kepala sekolah"}</p></div><span className="grid size-9 shrink-0 place-items-center rounded-full bg-pale text-sm font-bold text-primary">{name.slice(0, 1).toUpperCase()}</span><Settings2 aria-hidden="true" className="hidden size-4 text-slate-400 sm:block" /></div>
+          <div className="flex items-center gap-2 sm:gap-4"><Link href={role === "SISWA" ? "/siswa/notifikasi" : `/${role.toLowerCase()}`} aria-label={`Notifikasi${unreadCount ? `, ${unreadCount} belum dibaca` : ""}`} className="relative grid size-9 place-items-center rounded-lg text-slate-600 hover:bg-slate-100"><Bell aria-hidden="true" className="size-5" />{unreadCount > 0 && <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-danger px-1 text-center text-[10px] font-bold text-white">{unreadCount > 9 ? "9+" : unreadCount}</span>}</Link><span className="hidden h-8 w-px bg-slate-200 sm:block" /><div className="text-right"><p className="max-w-40 truncate text-sm font-semibold text-navy">{name}</p><p className="text-xs text-slate-500">{role === "SISWA" ? "Calon murid" : role === "ADMIN" ? "Administrator" : "Kepala sekolah"}</p></div><span className="grid size-9 shrink-0 place-items-center rounded-full bg-pale text-sm font-bold text-primary">{name.slice(0, 1).toUpperCase()}</span><Settings2 aria-hidden="true" className="hidden size-4 text-slate-400 sm:block" /></div>
         </header>
         <main className="mx-auto w-full max-w-[1440px] p-4 sm:p-6 lg:p-8">{children}</main>
       </div>

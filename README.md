@@ -18,11 +18,7 @@ Isi `DATABASE_URL` dengan connection string Neon pooled, `DIRECT_URL` dengan end
 openssl rand -base64 32
 ```
 
-Buat `BLOB_ENCRYPTION_KEY` sebagai kunci Base64 32 byte untuk enkripsi dokumen:
-
-```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+Atur `AWS_ENDPOINT`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, dan `AWS_SECRET_ACCESS_KEY` untuk Neon Object Storage yang kompatibel dengan S3. Buat bucket privat bernama `uploads` pada endpoint tersebut. Aplikasi menggunakan nama objek acak, validasi isi berkas, dan URL bertanda tangan berumur pendek; jangan membuat bucket ini publik.
 
 > Untuk development, gunakan kata sandi demo acak milik lingkungan lokal pada `DEMO_PASSWORD` (minimal 12 karakter). Seed tidak membuat akun demo jika `NODE_ENV=production`.
 
@@ -30,10 +26,10 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 1. Buat proyek PostgreSQL di Neon.
 2. Salin connection string pooled ke `DATABASE_URL` dan connection string non-pooled ke `DIRECT_URL`; pertahankan `sslmode=require`.
-3. Jalankan migrasi awal dan isi data demo:
+3. Terapkan migrasi dan isi data demo:
 
 ```powershell
-pnpm db:migrate --name init
+pnpm db:deploy
 pnpm db:seed
 ```
 
@@ -64,7 +60,7 @@ pnpm reset-staff-password "--email=$EmailStaf"
 
 **Sebelum go-live, hapus akun demo Nabila, Andi, dan Ratna dari basis data serta tinjau/hapus data pendaftar contoh.** Seed tidak membuat akun demo baru di production, tetapi tidak menghapus data demo yang sudah ada.
 
-Untuk produksi, isi `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` agar pembatasan percobaan masuk, pendaftaran, dan pemulihan kata sandi terdistribusi. Tanpa Upstash, pembatasan memori hanya digunakan pada development.
+Untuk produksi, isi `UPSTASH_REDIS_REST_URL` dan `UPSTASH_REDIS_REST_TOKEN` agar pembatasan percobaan masuk, pendaftaran, dan pemulihan kata sandi terdistribusi. Tanpa Upstash, pembatasan memori hanya digunakan pada development. Midtrans menggunakan endpoint sandbox; pembayaran elektronik memerlukan `MIDTRANS_SERVER_KEY`.
 
 ## Menjalankan aplikasi
 
@@ -76,7 +72,7 @@ Buka `http://localhost:3000`. Periksa kualitas kode dengan `pnpm lint`, `pnpm ty
 
 ## Vercel
 
-Impor repositori GitHub ke Vercel, gunakan preset Next.js, lalu masukkan variabel dari `.env.example` pada pengaturan proyek. Untuk produksi, gunakan `DATABASE_URL` pooled dan `DIRECT_URL` langsung ke Neon. Pastikan `AUTH_SECRET`, `BLOB_ENCRYPTION_KEY`, token Blob, Resend, Midtrans, dan Upstash berasal dari penyimpanan secret Vercel; jangan masukkan nilai rahasia ke repositori. Berkas dokumen dienkripsi AES-256-GCM sebelum diunggah dan hanya dibuka melalui endpoint dengan autentikasi dan pemeriksaan kepemilikan/peran. Atur perintah build `pnpm build` dan jalankan migrasi produksi melalui `pnpm db:deploy` sebelum mengalihkan trafik.
+Impor repositori GitHub ke Vercel, gunakan preset Next.js, lalu masukkan variabel dari `.env.example` pada pengaturan proyek. Untuk produksi, gunakan `DATABASE_URL` pooled dan `DIRECT_URL` langsung ke Neon. Pastikan `AUTH_SECRET`, kredensial AWS, Resend, Midtrans, dan Upstash berasal dari penyimpanan secret; jangan masukkan nilai rahasia ke repositori. Berkas siswa disimpan di bucket privat dan hanya dibuka melalui URL bertanda tangan setelah pemeriksaan kepemilikan/peran. Atur perintah build `pnpm build` dan jalankan migrasi produksi melalui `pnpm db:deploy` sebelum mengalihkan trafik.
 
 ## GitHub
 
@@ -86,7 +82,7 @@ Simpan kode sumber dan perubahan schema di GitHub. Workflow `.github/workflows/c
 
 - `src/app`: halaman publik, autentikasi, API, dan portal siswa/admin/kepala sekolah
 - `src/components`: komponen UI, layout, dan komponen bersama
-- `src/lib`: database, autentikasi, validasi, RBAC, audit, Blob, email, dan PDF
+- `src/lib`: database, autentikasi, validasi, RBAC, audit, penyimpanan S3 privat, email, dan PDF
 - `src/server/services`: layanan domain pendaftaran, dokumen, pembayaran, seleksi, pengumuman, dan laporan
 - `prisma`: skema dan seed basis data
 

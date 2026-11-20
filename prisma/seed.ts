@@ -64,7 +64,8 @@ async function main() {
       create: {
         id: "demo-student-nabila",
         fullName: "Nabila Putri Azzahra",
-        nationalId: "0091812345",
+        nationalId: "3276010101110001",
+        nisn: "0091812345",
         birthPlace: "Depok",
         birthDate: new Date("2011-01-01"),
         gender: "PEREMPUAN",
@@ -72,7 +73,7 @@ async function main() {
         address: "Kota Depok",
         userId: nabilaUser.id,
       },
-      update: { fullName: "Nabila Putri Azzahra", nationalId: "0091812345" },
+      update: { fullName: "Nabila Putri Azzahra", nationalId: "3276010101110001", nisn: "0091812345" },
     });
     const nabilaRegistration = await prisma.registration.upsert({
       where: { registrationNo: "SPMB27-00918" },
