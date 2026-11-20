@@ -1,10 +1,11 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-import type { Role } from "@prisma/client";
+import { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db/prisma";
 import { clientAddress, consumeRateLimits, hashIdentifier } from "@/lib/auth/rate-limit";
 import { writeAuditLog } from "@/lib/audit/log";
+import { getDevelopmentDemoProviders } from "@/lib/auth/development-demo-providers";
 
 const lockoutWindowSeconds = 15 * 60;
 const loginActivityActions = ["LOGIN_FAILED", "LOGIN_SUCCESS"];
@@ -124,6 +125,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     credentialsProvider("siswa-credentials", "Akun Siswa", "SISWA", true),
     credentialsProvider("admin-credentials", "Akun Admin", "ADMIN"),
     credentialsProvider("kepsek-credentials", "Akun Kepala Sekolah", "KEPSEK"),
+    ...getDevelopmentDemoProviders(),
   ],
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   cookies: {

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -17,6 +18,17 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: { cpus: 1 },
+  webpack(config, { dev }) {
+    if (!dev) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@/lib/auth/development-demo-providers": path.resolve(process.cwd(), "src/lib/auth/production-demo-providers.ts"),
+        "@/lib/auth/development-login-action": path.resolve(process.cwd(), "src/lib/auth/production-development-login-action.ts"),
+        "@/components/auth/development-quick-login": path.resolve(process.cwd(), "src/components/auth/production-quick-login.tsx"),
+      };
+    }
+    return config;
+  },
   async headers() {
     return [
       {

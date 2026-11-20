@@ -116,7 +116,7 @@ async function LandingContent() {
             <a className="text-sm font-medium text-slate-600 hover:text-primary" href="#persyaratan">Persyaratan</a>
             <a className="text-sm font-medium text-slate-600 hover:text-primary" href="#pengumuman">Pengumuman</a>
             <a className="text-sm font-medium text-slate-600 hover:text-primary" href="#faq">FAQ</a>
-            <Link href="/masuk" className="text-sm font-semibold text-slate-700 hover:text-primary">Masuk</Link>
+            <Link href="/portal" className="text-sm font-semibold text-slate-700 hover:text-primary">Masuk</Link>
             <Link href="/daftar"><Button size="sm">Daftar sekarang</Button></Link>
           </nav>
           <details className="relative xl:hidden">
@@ -127,7 +127,7 @@ async function LandingContent() {
               <a className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="#persyaratan">Persyaratan</a>
               <a className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="#pengumuman">Pengumuman</a>
               <a className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="#faq">FAQ</a>
-              <Link className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/masuk">Masuk</Link>
+              <Link className="rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" href="/portal">Masuk</Link>
               <Link href="/daftar" className="p-1"><Button className="w-full" size="sm">Daftar sekarang</Button></Link>
             </nav>
           </details>
@@ -223,7 +223,7 @@ async function LandingContent() {
 
       <footer className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <div><p className="font-semibold text-slate-700">SMP Negeri 9 Depok</p><p className="mt-1">Portal Penerimaan Murid Baru · © {new Date().getFullYear()}</p></div>
-        <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Navigasi kaki halaman"><a className="hover:text-primary" href="#alur-jadwal">Alur &amp; jadwal</a><a className="hover:text-primary" href="#persyaratan">Persyaratan</a><a className="hover:text-primary" href="#faq">Bantuan</a><Link className="font-semibold text-primary hover:underline" href="/masuk">Masuk ke portal</Link></nav>
+        <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="Navigasi kaki halaman"><a className="hover:text-primary" href="#alur-jadwal">Alur &amp; jadwal</a><a className="hover:text-primary" href="#persyaratan">Persyaratan</a><a className="hover:text-primary" href="#faq">Bantuan</a><Link className="font-semibold text-primary hover:underline" href="/portal">Masuk ke portal</Link></nav>
       </footer>
     </main>
   );

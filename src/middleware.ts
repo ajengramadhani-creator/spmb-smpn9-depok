@@ -7,12 +7,29 @@ const roleByPath = [
   { prefix: "/kepsek", role: "KEPSEK" },
 ] as const;
 
+const loginRoleByPath: Record<string, (typeof roleByPath)[number]["role"]> = {
+  "/masuk": "SISWA",
+  "/admin/masuk": "ADMIN",
+  "/kepsek/masuk": "KEPSEK",
+};
+
+const dashboardByRole: Record<(typeof roleByPath)[number]["role"], string> = {
+  SISWA: "/siswa",
+  ADMIN: "/admin",
+  KEPSEK: "/kepsek",
+};
+
+const loginByRole: Record<(typeof roleByPath)[number]["role"], string> = {
+  SISWA: "/masuk",
+  ADMIN: "/admin/masuk",
+  KEPSEK: "/kepsek/masuk",
+};
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname === "/admin/masuk" || pathname === "/kepsek/masuk") return NextResponse.next();
-
   const required = roleByPath.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`));
-  if (!required) return NextResponse.next();
+  const loginRole = loginRoleByPath[pathname];
+  if (!required && !loginRole) return NextResponse.next();
 
   const token = await getToken({
     req: request,
@@ -20,13 +37,20 @@ export async function middleware(request: NextRequest) {
     cookieName: process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token",
   });
   if (!token) {
-    const loginPath = required.role === "ADMIN" ? "/admin/masuk" : required.role === "KEPSEK" ? "/kepsek/masuk" : "/masuk";
-    return NextResponse.redirect(new URL(loginPath, request.url));
+    if (loginRole) return NextResponse.next();
+    if (!required) return NextResponse.next();
+    return NextResponse.redirect(new URL(loginByRole[required.role], request.url));
   }
-  if (token.role !== required.role) return NextResponse.redirect(new URL("/akses-ditolak", request.url));
+  if (typeof token.role !== "string" || !Object.hasOwn(dashboardByRole, token.role)) {
+    return NextResponse.redirect(new URL("/akses-ditolak", request.url));
+  }
+  const dashboardPath = dashboardByRole[token.role as keyof typeof dashboardByRole];
+  if (loginRole || (required && token.role !== required.role)) {
+    return NextResponse.redirect(new URL(dashboardPath, request.url));
+  }
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/siswa/:path*", "/admin/:path*", "/kepsek/:path*"],
+  matcher: ["/masuk", "/siswa/:path*", "/admin/:path*", "/kepsek/:path*"],
 };

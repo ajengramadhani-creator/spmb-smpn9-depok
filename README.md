@@ -39,6 +39,8 @@ Seed menyiapkan periode 2027/2028, jalur Domisili (144), Prestasi (72), Afirmasi
 
 Portal masuk terpisah tersedia di `/masuk` (siswa), `/admin/masuk` (administrator), dan `/kepsek/masuk` (kepala sekolah). Pendaftaran publik hanya membuat akun SISWA dan memerlukan verifikasi email. Atur `RESEND_API_KEY` dan `EMAIL_FROM` untuk pengiriman email verifikasi serta pemulihan kata sandi. Tautan reset kata sandi berlaku 30 menit dan hanya dapat digunakan sekali.
 
+Halaman `/portal` menjadi gerbang ke tiga portal; halaman masuk hanya menerima akun dengan peran yang sesuai. Di development, gerbang menampilkan tombol akun demo yang masuk tanpa mengirim kata sandi. Tombol dan provider demo tidak tersedia di production.
+
 Portal ADMIN memiliki dashboard pendaftaran, verifikasi, pembayaran, dan aktivitas audit; tabel pendaftaran, pembayaran, serta pengumuman menampilkan data basis data. Bank soal, tes, kelayakan TKA, seleksi, laporan, dan verifikasi berkas masih berupa kerangka. Portal KEPSEK bersifat baca-saja; dashboard menampilkan progres tahapan dan kuota per jalur, sementara halaman laporan lain masih berupa kerangka. Semua halaman staf diperiksa kembali berdasarkan peran di server.
 
 Buat akun ADMIN atau KEPSEK pertama di terminal pada lingkungan yang memiliki akses ke basis data. Masukkan email asli staf dan nama saat menjalankan perintah; kata sandi diminta secara interaktif tanpa ditampilkan:

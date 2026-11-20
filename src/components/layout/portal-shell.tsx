@@ -62,6 +62,7 @@ const navigation = {
 } as const;
 
 const roleName = { SISWA: "Portal Siswa", ADMIN: "Portal Admin", KEPSEK: "Portal Kepala Sekolah" } as const;
+const profileRoleName = { SISWA: "Calon murid", ADMIN: "Admin Panitia", KEPSEK: "Kepala sekolah" } as const;
 const rootPath = { SISWA: "/siswa", ADMIN: "/admin", KEPSEK: "/kepsek" } as const;
 const loginPath = { SISWA: "/masuk", ADMIN: "/admin/masuk", KEPSEK: "/kepsek/masuk" } as const;
 
@@ -173,9 +174,9 @@ export function PortalShell({
               </Link>
             )}
             <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-              <div className="hidden text-right sm:block">
-                <p className="max-w-40 truncate text-sm font-semibold text-navy">{name}</p>
-                <p className="text-xs text-slate-500">{role === "SISWA" ? "Calon murid" : role === "ADMIN" ? "Administrator" : "Kepala sekolah"}</p>
+              <div className="min-w-0 max-w-24 text-right sm:max-w-40">
+                <p className="truncate text-xs font-semibold text-navy sm:text-sm">{name}</p>
+                <p className="truncate text-[10px] text-slate-500 sm:text-xs">{profileRoleName[role]}</p>
               </div>
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-pale text-sm font-bold text-primary" aria-label={name}>{name.slice(0, 1).toUpperCase()}</span>
             </div>
