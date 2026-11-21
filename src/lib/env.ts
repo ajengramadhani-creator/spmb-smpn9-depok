@@ -10,6 +10,7 @@ const envSchema = z.object({
   AUTH_URL: z.string().url().default("http://localhost:3000"),
   AWS_ENDPOINT: optionalUrl,
   AWS_REGION: optionalText,
+  AWS_BUCKET: optionalText,
   AWS_ACCESS_KEY_ID: optionalText,
   AWS_SECRET_ACCESS_KEY: optionalText,
   RESEND_API_KEY: optionalText,

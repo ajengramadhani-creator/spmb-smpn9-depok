@@ -18,7 +18,7 @@ Isi `DATABASE_URL` dengan connection string Neon pooled, `DIRECT_URL` dengan end
 openssl rand -base64 32
 ```
 
-Atur `AWS_ENDPOINT`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, dan `AWS_SECRET_ACCESS_KEY` untuk Neon Object Storage yang kompatibel dengan S3. Buat bucket privat bernama `uploads` pada endpoint tersebut. Aplikasi menggunakan nama objek acak, validasi isi berkas, dan URL bertanda tangan berumur pendek; jangan membuat bucket ini publik.
+Atur `AWS_ENDPOINT`, `AWS_REGION`, `AWS_BUCKET`, `AWS_ACCESS_KEY_ID`, dan `AWS_SECRET_ACCESS_KEY` untuk Neon Object Storage yang kompatibel dengan S3. Gunakan `AWS_BUCKET=uploads` dan buat bucket tersebut privat pada endpoint yang dikonfigurasi. Aplikasi menggunakan nama objek acak, validasi isi berkas, dan signed URL berumur pendek; jangan membuat bucket ini publik. Jika konfigurasi `AWS_*` belum lengkap, unggah berkas akan menampilkan pesan `Penyimpanan berkas belum dikonfigurasi`.
 
 > Untuk development, gunakan kata sandi demo acak milik lingkungan lokal pada `DEMO_PASSWORD` (minimal 12 karakter). Seed tidak membuat akun demo jika `NODE_ENV=production`.
 
