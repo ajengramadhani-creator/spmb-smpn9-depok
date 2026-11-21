@@ -9,3 +9,6 @@ coverage
 *.tsbuildinfo
 prisma/dev.db
 public/uploads
+
+# desain lokal (PDF besar, tidak dikirim ke GitHub)
+docs/
